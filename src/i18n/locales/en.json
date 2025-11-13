@@ -1,0 +1,117 @@
+{
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "create": "Create",
+    "loading": "Loading...",
+    "error": "Error",
+    "success": "Success"
+  },
+  "navigation": {
+    "dashboard": "Dashboard",
+    "episodes": "Episodes",
+    "upload": "Upload",
+    "analytics": "Analytics",
+    "profile": "Profile",
+    "settings": "Settings",
+    "billing": "Billing"
+  },
+  "settings": {
+    "title": "Settings",
+    "subtitle": "Manage your account preferences and privacy settings",
+    "goToDashboard": "Go to Dashboard",
+    "saveChanges": "Save Changes",
+    "saving": "Saving...",
+    "tabs": {
+      "general": "General",
+      "notifications": "Notifications",
+      "privacy": "Privacy",
+      "data": "Data"
+    },
+    "profile": {
+      "title": "Profile Information",
+      "fullName": "Full Name",
+      "emailAddress": "Email Address",
+      "managedByProvider": "Managed by your account provider"
+    },
+    "preferences": {
+      "title": "Preferences",
+      "theme": "Theme",
+      "language": "Language",
+      "autoSave": "Auto-save",
+      "autoSaveDescription": "Automatically save your work as you edit",
+      "defaultQuality": "Default Processing Quality",
+      "themes": {
+        "light": "Light",
+        "dark": "Dark",
+        "system": "System"
+      },
+      "languages": {
+        "en": "English",
+        "es": "Spanish",
+        "fr": "French",
+        "de": "German"
+      },
+      "qualities": {
+        "standard": "Standard (Faster)",
+        "high": "High Quality (Recommended)",
+        "premium": "Premium (Slower, Best Quality)"
+      }
+    },
+    "notifications": {
+      "title": "Notifications",
+      "email": "Email Notifications",
+      "emailDescription": "Receive email updates about your account and episodes",
+      "inApp": "In-App Notifications",
+      "inAppDescription": "Receive notifications directly within the application"
+    },
+    "privacy": {
+      "title": "Privacy",
+      "dataSharing": "Data Sharing",
+      "dataSharingDescription": "Allow us to share anonymized data to improve our services",
+      "telemetry": "Telemetry Data",
+      "telemetryDescription": "Send anonymous usage data to help us improve the app"
+    },
+    "data": {
+      "title": "Data Management",
+      "export": {
+        "title": "Export Your Data",
+        "description": "Download all your episodes, settings, and account data in JSON format.",
+        "button": "Export Data"
+      },
+      "delete": {
+        "title": "Delete All Data",
+        "description": "Permanently delete all your episodes, settings, and account data. This action cannot be undone.",
+        "button": "Delete All Data",
+        "confirmTitle": "Are you absolutely sure?",
+        "confirmDescription": "This action cannot be undone. This will permanently delete your account and remove your data from our servers.",
+        "confirmButton": "Delete My Account"
+      },
+      "usage": {
+        "title": "Data Usage",
+        "episodesStored": "Episodes stored:",
+        "accountCreated": "Account created:"
+      }
+    }
+  },
+  "dashboard": {
+    "welcome": "Welcome back, {{name}}!",
+    "welcomeSubtitle": "Ready to create amazing content today?",
+    "newEpisode": "New Episode",
+    "yourEpisodes": "Your Episodes",
+    "selectAll": "Select all episodes",
+    "viewAll": "View All",
+    "noEpisodes": "No episodes found",
+    "noEpisodesDescription": "Create your first episode to get started",
+    "createEpisode": "Create Episode",
+    "searchPlaceholder": "Search episodes...",
+    "usage": {
+      "title": "Usage",
+      "episodes": "Episodes",
+      "freeTier": "Free tier: 5 episodes per month",
+      "upgradePlan": "Upgrade Plan"
+    }
+  }
+}

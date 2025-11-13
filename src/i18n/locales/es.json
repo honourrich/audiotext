@@ -1,0 +1,117 @@
+{
+  "common": {
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "delete": "Eliminar",
+    "edit": "Editar",
+    "create": "Crear",
+    "loading": "Cargando...",
+    "error": "Error",
+    "success": "Éxito"
+  },
+  "navigation": {
+    "dashboard": "Panel",
+    "episodes": "Episodios",
+    "upload": "Subir",
+    "analytics": "Analíticas",
+    "profile": "Perfil",
+    "settings": "Configuración",
+    "billing": "Facturación"
+  },
+  "settings": {
+    "title": "Configuración",
+    "subtitle": "Gestiona las preferencias de tu cuenta y configuración de privacidad",
+    "goToDashboard": "Ir al Panel",
+    "saveChanges": "Guardar Cambios",
+    "saving": "Guardando...",
+    "tabs": {
+      "general": "General",
+      "notifications": "Notificaciones",
+      "privacy": "Privacidad",
+      "data": "Datos"
+    },
+    "profile": {
+      "title": "Información del Perfil",
+      "fullName": "Nombre Completo",
+      "emailAddress": "Dirección de Email",
+      "managedByProvider": "Gestionado por tu proveedor de cuenta"
+    },
+    "preferences": {
+      "title": "Preferencias",
+      "theme": "Tema",
+      "language": "Idioma",
+      "autoSave": "Guardado Automático",
+      "autoSaveDescription": "Guarda automáticamente tu trabajo mientras editas",
+      "defaultQuality": "Calidad de Procesamiento por Defecto",
+      "themes": {
+        "light": "Claro",
+        "dark": "Oscuro",
+        "system": "Sistema"
+      },
+      "languages": {
+        "en": "Inglés",
+        "es": "Español",
+        "fr": "Francés",
+        "de": "Alemán"
+      },
+      "qualities": {
+        "standard": "Estándar (Más Rápido)",
+        "high": "Alta Calidad (Recomendado)",
+        "premium": "Premium (Más Lento, Mejor Calidad)"
+      }
+    },
+    "notifications": {
+      "title": "Notificaciones",
+      "email": "Notificaciones por Email",
+      "emailDescription": "Recibe actualizaciones por email sobre tu cuenta y episodios",
+      "inApp": "Notificaciones en la App",
+      "inAppDescription": "Recibe notificaciones directamente dentro de la aplicación"
+    },
+    "privacy": {
+      "title": "Privacidad",
+      "dataSharing": "Compartir Datos",
+      "dataSharingDescription": "Permítenos compartir datos anónimos para mejorar nuestros servicios",
+      "telemetry": "Datos de Telemetría",
+      "telemetryDescription": "Enviar datos de uso anónimos para ayudarnos a mejorar la app"
+    },
+    "data": {
+      "title": "Gestión de Datos",
+      "export": {
+        "title": "Exportar Tus Datos",
+        "description": "Descarga todos tus episodios, configuraciones y datos de cuenta en formato JSON.",
+        "button": "Exportar Datos"
+      },
+      "delete": {
+        "title": "Eliminar Todos los Datos",
+        "description": "Elimina permanentemente todos tus episodios, configuraciones y datos de cuenta. Esta acción no se puede deshacer.",
+        "button": "Eliminar Todos los Datos",
+        "confirmTitle": "¿Estás absolutamente seguro?",
+        "confirmDescription": "Esta acción no se puede deshacer. Esto eliminará permanentemente tu cuenta y removerá tus datos de nuestros servidores.",
+        "confirmButton": "Eliminar Mi Cuenta"
+      },
+      "usage": {
+        "title": "Uso de Datos",
+        "episodesStored": "Episodios almacenados:",
+        "accountCreated": "Cuenta creada:"
+      }
+    }
+  },
+  "dashboard": {
+    "welcome": "¡Bienvenido de vuelta, {{name}}!",
+    "welcomeSubtitle": "¿Listo para crear contenido increíble hoy?",
+    "newEpisode": "Nuevo Episodio",
+    "yourEpisodes": "Tus Episodios",
+    "selectAll": "Seleccionar todos los episodios",
+    "viewAll": "Ver Todo",
+    "noEpisodes": "No se encontraron episodios",
+    "noEpisodesDescription": "Crea tu primer episodio para comenzar",
+    "createEpisode": "Crear Episodio",
+    "searchPlaceholder": "Buscar episodios...",
+    "usage": {
+      "title": "Uso",
+      "episodes": "Episodios",
+      "freeTier": "Plan gratuito: 5 episodios por mes",
+      "upgradePlan": "Actualizar Plan"
+    }
+  }
+}

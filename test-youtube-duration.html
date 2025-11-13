@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test YouTube Duration Fetching</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .container { max-width: 800px; margin: 0 auto; }
+        .form-group { margin-bottom: 15px; }
+        input[type="text"] { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; }
+        button { padding: 10px 20px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        button:hover { background: #0056b3; }
+        .result { margin-top: 20px; padding: 15px; border-radius: 4px; }
+        .success { background: #d4edda; border: 1px solid #c3e6cb; color: #155724; }
+        .error { background: #f8d7da; border: 1px solid #f5c6cb; color: #721c24; }
+        .loading { background: #d1ecf1; border: 1px solid #bee5eb; color: #0c5460; }
+        pre { background: #f8f9fa; padding: 10px; border-radius: 4px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Test YouTube Duration Fetching</h1>
+        
+        <div class="form-group">
+            <label for="youtubeUrl">YouTube URL:</label>
+            <input type="text" id="youtubeUrl" placeholder="https://www.youtube.com/watch?v=..." value="https://www.youtube.com/watch?v=dQw4w9WgXcQ">
+        </div>
+        
+        <button onclick="testYouTubeProcessing()">Test YouTube Processing</button>
+        
+        <div id="result"></div>
+    </div>
+
+    <script>
+        async function testYouTubeProcessing() {
+            const youtubeUrl = document.getElementById('youtubeUrl').value;
+            const resultDiv = document.getElementById('result');
+            
+            if (!youtubeUrl) {
+                resultDiv.innerHTML = '<div class="error">Please enter a YouTube URL</div>';
+                return;
+            }
+            
+            resultDiv.innerHTML = '<div class="loading">Testing YouTube processing...</div>';
+            
+            try {
+                const startTime = Date.now();
+                
+                // Get Supabase URL from environment or assets
+                const supabaseUrl = 'https://rootnymscbyjpzoyiydwx.supabase.co'; // Replace with your actual URL
+                
+                const response = await fetch(`${supabaseUrl}/functions/v1/process-youtube-captions`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ 
+                        youtubeUrl: youtubeUrl,
+                        userId: 'test-user'
+                    }),
+                });
+                
+                const endTime = Date.now();
+                const duration = ((endTime - startTime) / 1000).toFixed(2);
+                
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    let html = `<div class="result success">
+                        <strong>✅ Success!</strong> (${duration}s)<br><br>
+                        <strong>Video Title:</strong> ${data.videoTitle || 'N/A'}<br>
+                        <strong>Video Duration:</strong> ${data.videoDuration || 'Not available'} seconds<br>
+                        <strong>Duration Formatted:</strong> ${data.videoDuration ? formatDuration(data.videoDuration) : 'N/A'}<br>
+                        <strong>Transcript Length:</strong> ${data.transcript?.length || 0} characters<br>
+                        <strong>Episode ID:</strong> ${data.episodeId || 'N/A'}<br><br>
+                        <strong>Full Response:</strong><br>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    </div>`;
+                    
+                    resultDiv.innerHTML = html;
+                } else {
+                    resultDiv.innerHTML = `<div class="result error">
+                        <strong>❌ Error!</strong> (${duration}s)<br><br>
+                        <strong>Status:</strong> ${response.status}<br>
+                        <strong>Error:</strong> ${data.error || 'Unknown error'}<br><br>
+                        <strong>Full Response:</strong><br>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    </div>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="result error">
+                    <strong>❌ Network Error!</strong><br><br>
+                    <strong>Error:</strong> ${error.message}<br><br>
+                    <strong>Stack:</strong><br>
+                    <pre>${error.stack}</pre>
+                </div>`;
+            }
+        }
+        
+        function formatDuration(seconds) {
+            if (!seconds) return '00:00';
+            
+            const hours = Math.floor(seconds / 3600);
+            const minutes = Math.floor((seconds % 3600) / 60);
+            const secs = Math.floor(seconds % 60);
+            
+            if (hours > 0) {
+                return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+            } else {
+                return `${minutes}:${secs.toString().padStart(2, '0')}`;
+            }
+        }
+    </script>
+</body>
+</html>

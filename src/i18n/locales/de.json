@@ -1,0 +1,117 @@
+{
+  "common": {
+    "save": "Speichern",
+    "cancel": "Abbrechen",
+    "delete": "Löschen",
+    "edit": "Bearbeiten",
+    "create": "Erstellen",
+    "loading": "Laden...",
+    "error": "Fehler",
+    "success": "Erfolg"
+  },
+  "navigation": {
+    "dashboard": "Dashboard",
+    "episodes": "Episoden",
+    "upload": "Hochladen",
+    "analytics": "Analytik",
+    "profile": "Profil",
+    "settings": "Einstellungen",
+    "billing": "Abrechnung"
+  },
+  "settings": {
+    "title": "Einstellungen",
+    "subtitle": "Verwalten Sie Ihre Kontoeinstellungen und Datenschutzeinstellungen",
+    "goToDashboard": "Zum Dashboard",
+    "saveChanges": "Änderungen Speichern",
+    "saving": "Speichern...",
+    "tabs": {
+      "general": "Allgemein",
+      "notifications": "Benachrichtigungen",
+      "privacy": "Datenschutz",
+      "data": "Daten"
+    },
+    "profile": {
+      "title": "Profilinformationen",
+      "fullName": "Vollständiger Name",
+      "emailAddress": "E-Mail-Adresse",
+      "managedByProvider": "Verwaltet von Ihrem Kontenanbieter"
+    },
+    "preferences": {
+      "title": "Einstellungen",
+      "theme": "Design",
+      "language": "Sprache",
+      "autoSave": "Automatisches Speichern",
+      "autoSaveDescription": "Speichert Ihre Arbeit automatisch während der Bearbeitung",
+      "defaultQuality": "Standard-Verarbeitungsqualität",
+      "themes": {
+        "light": "Hell",
+        "dark": "Dunkel",
+        "system": "System"
+      },
+      "languages": {
+        "en": "Englisch",
+        "es": "Spanisch",
+        "fr": "Französisch",
+        "de": "Deutsch"
+      },
+      "qualities": {
+        "standard": "Standard (Schneller)",
+        "high": "Hohe Qualität (Empfohlen)",
+        "premium": "Premium (Langsamer, Beste Qualität)"
+      }
+    },
+    "notifications": {
+      "title": "Benachrichtigungen",
+      "email": "E-Mail-Benachrichtigungen",
+      "emailDescription": "Erhalten Sie E-Mail-Updates über Ihr Konto und Episoden",
+      "inApp": "In-App-Benachrichtigungen",
+      "inAppDescription": "Erhalten Sie Benachrichtigungen direkt in der Anwendung"
+    },
+    "privacy": {
+      "title": "Datenschutz",
+      "dataSharing": "Datenaustausch",
+      "dataSharingDescription": "Erlauben Sie uns, anonymisierte Daten zu teilen, um unsere Dienste zu verbessern",
+      "telemetry": "Telemetrie-Daten",
+      "telemetryDescription": "Anonyme Nutzungsdaten senden, um uns bei der Verbesserung der App zu helfen"
+    },
+    "data": {
+      "title": "Datenverwaltung",
+      "export": {
+        "title": "Ihre Daten Exportieren",
+        "description": "Laden Sie alle Ihre Episoden, Einstellungen und Kontodaten im JSON-Format herunter.",
+        "button": "Daten Exportieren"
+      },
+      "delete": {
+        "title": "Alle Daten Löschen",
+        "description": "Löschen Sie dauerhaft alle Ihre Episoden, Einstellungen und Kontodaten. Diese Aktion kann nicht rückgängig gemacht werden.",
+        "button": "Alle Daten Löschen",
+        "confirmTitle": "Sind Sie absolut sicher?",
+        "confirmDescription": "Diese Aktion kann nicht rückgängig gemacht werden. Dies wird Ihr Konto dauerhaft löschen und Ihre Daten von unseren Servern entfernen.",
+        "confirmButton": "Mein Konto Löschen"
+      },
+      "usage": {
+        "title": "Datenverbrauch",
+        "episodesStored": "Gespeicherte Episoden:",
+        "accountCreated": "Konto erstellt:"
+      }
+    }
+  },
+  "dashboard": {
+    "welcome": "Willkommen zurück, {{name}}!",
+    "welcomeSubtitle": "Bereit, heute großartige Inhalte zu erstellen?",
+    "newEpisode": "Neue Episode",
+    "yourEpisodes": "Ihre Episoden",
+    "selectAll": "Alle Episoden auswählen",
+    "viewAll": "Alle Anzeigen",
+    "noEpisodes": "Keine Episoden gefunden",
+    "noEpisodesDescription": "Erstellen Sie Ihre erste Episode, um zu beginnen",
+    "createEpisode": "Episode Erstellen",
+    "searchPlaceholder": "Episoden suchen...",
+    "usage": {
+      "title": "Verbrauch",
+      "episodes": "Episoden",
+      "freeTier": "Kostenloser Plan: 5 Episoden pro Monat",
+      "upgradePlan": "Plan Upgraden"
+    }
+  }
+}

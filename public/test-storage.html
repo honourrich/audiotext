@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>LocalStorage Test</title>
+</head>
+<body>
+    <h1>LocalStorage Test</h1>
+    <div id="results"></div>
+    
+    <button onclick="testLocalStorage()">Test localStorage</button>
+    <button onclick="clearStorage()">Clear Storage</button>
+    <button onclick="createTestEpisode()">Create Test Episode</button>
+    
+    <script>
+        function testLocalStorage() {
+            const results = document.getElementById('results');
+            results.innerHTML = '<h2>Test Results:</h2>';
+            
+            // Test basic localStorage
+            try {
+                localStorage.setItem('test', 'hello');
+                const retrieved = localStorage.getItem('test');
+                results.innerHTML += `<p>✅ Basic localStorage works: ${retrieved}</p>`;
+            } catch (e) {
+                results.innerHTML += `<p>❌ Basic localStorage failed: ${e.message}</p>`;
+            }
+            
+            // Test JSON serialization
+            try {
+                const testData = [{ id: 'test1', title: 'Test Episode' }];
+                localStorage.setItem('test-episodes', JSON.stringify(testData));
+                const retrieved = JSON.parse(localStorage.getItem('test-episodes'));
+                results.innerHTML += `<p>✅ JSON serialization works: ${JSON.stringify(retrieved)}</p>`;
+            } catch (e) {
+                results.innerHTML += `<p>❌ JSON serialization failed: ${e.message}</p>`;
+            }
+            
+            // Check existing episodes
+            const existing = localStorage.getItem('episodes');
+            results.innerHTML += `<p>📁 Existing episodes: ${existing || 'None'}</p>`;
+        }
+        
+        function clearStorage() {
+            localStorage.clear();
+            document.getElementById('results').innerHTML = '<p>Storage cleared</p>';
+        }
+        
+        function createTestEpisode() {
+            const testEpisode = {
+                id: `test_${Date.now()}`,
+                title: 'Test Episode',
+                duration: '01:00',
+                transcript: 'This is a test episode transcript.',
+                summary: 'This is a test summary.',
+                chapters: [],
+                keywords: ['test'],
+                hasAIContent: false,
+                aiGeneratedAt: null,
+                audioUrl: null,
+                youtubeUrl: null,
+                fileSize: null,
+                processingStatus: 'completed',
+                processingProgress: 100,
+                processingError: null,
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+                wordCount: 6,
+                processingTime: 0,
+                apiCost: 0
+            };
+            
+            const existingEpisodes = JSON.parse(localStorage.getItem('episodes') || '[]');
+            existingEpisodes.unshift(testEpisode);
+            localStorage.setItem('episodes', JSON.stringify(existingEpisodes));
+            
+            document.getElementById('results').innerHTML = `
+                <p>✅ Created test episode with ID: ${testEpisode.id}</p>
+                <p>📁 Total episodes in storage: ${existingEpisodes.length}</p>
+                <p>📄 Raw storage data: ${localStorage.getItem('episodes')}</p>
+            `;
+        }
+        
+        // Run test on load
+        window.onload = testLocalStorage;
+    </script>
+</body>
+</html>

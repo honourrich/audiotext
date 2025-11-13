@@ -1,0 +1,117 @@
+{
+  "common": {
+    "save": "Enregistrer",
+    "cancel": "Annuler",
+    "delete": "Supprimer",
+    "edit": "Modifier",
+    "create": "Créer",
+    "loading": "Chargement...",
+    "error": "Erreur",
+    "success": "Succès"
+  },
+  "navigation": {
+    "dashboard": "Tableau de bord",
+    "episodes": "Épisodes",
+    "upload": "Télécharger",
+    "analytics": "Analytiques",
+    "profile": "Profil",
+    "settings": "Paramètres",
+    "billing": "Facturation"
+  },
+  "settings": {
+    "title": "Paramètres",
+    "subtitle": "Gérez vos préférences de compte et paramètres de confidentialité",
+    "goToDashboard": "Aller au Tableau de bord",
+    "saveChanges": "Enregistrer les Modifications",
+    "saving": "Enregistrement...",
+    "tabs": {
+      "general": "Général",
+      "notifications": "Notifications",
+      "privacy": "Confidentialité",
+      "data": "Données"
+    },
+    "profile": {
+      "title": "Informations du Profil",
+      "fullName": "Nom Complet",
+      "emailAddress": "Adresse Email",
+      "managedByProvider": "Géré par votre fournisseur de compte"
+    },
+    "preferences": {
+      "title": "Préférences",
+      "theme": "Thème",
+      "language": "Langue",
+      "autoSave": "Sauvegarde Automatique",
+      "autoSaveDescription": "Sauvegarde automatiquement votre travail pendant que vous modifiez",
+      "defaultQuality": "Qualité de Traitement par Défaut",
+      "themes": {
+        "light": "Clair",
+        "dark": "Sombre",
+        "system": "Système"
+      },
+      "languages": {
+        "en": "Anglais",
+        "es": "Espagnol",
+        "fr": "Français",
+        "de": "Allemand"
+      },
+      "qualities": {
+        "standard": "Standard (Plus Rapide)",
+        "high": "Haute Qualité (Recommandé)",
+        "premium": "Premium (Plus Lent, Meilleure Qualité)"
+      }
+    },
+    "notifications": {
+      "title": "Notifications",
+      "email": "Notifications Email",
+      "emailDescription": "Recevez des mises à jour par email sur votre compte et épisodes",
+      "inApp": "Notifications dans l'App",
+      "inAppDescription": "Recevez des notifications directement dans l'application"
+    },
+    "privacy": {
+      "title": "Confidentialité",
+      "dataSharing": "Partage de Données",
+      "dataSharingDescription": "Permettez-nous de partager des données anonymisées pour améliorer nos services",
+      "telemetry": "Données de Télémétrie",
+      "telemetryDescription": "Envoyer des données d'utilisation anonymes pour nous aider à améliorer l'app"
+    },
+    "data": {
+      "title": "Gestion des Données",
+      "export": {
+        "title": "Exporter Vos Données",
+        "description": "Téléchargez tous vos épisodes, paramètres et données de compte au format JSON.",
+        "button": "Exporter les Données"
+      },
+      "delete": {
+        "title": "Supprimer Toutes les Données",
+        "description": "Supprimez définitivement tous vos épisodes, paramètres et données de compte. Cette action ne peut pas être annulée.",
+        "button": "Supprimer Toutes les Données",
+        "confirmTitle": "Êtes-vous absolument sûr ?",
+        "confirmDescription": "Cette action ne peut pas être annulée. Cela supprimera définitivement votre compte et supprimera vos données de nos serveurs.",
+        "confirmButton": "Supprimer Mon Compte"
+      },
+      "usage": {
+        "title": "Utilisation des Données",
+        "episodesStored": "Épisodes stockés :",
+        "accountCreated": "Compte créé :"
+      }
+    }
+  },
+  "dashboard": {
+    "welcome": "Bon retour, {{name}} !",
+    "welcomeSubtitle": "Prêt à créer du contenu incroyable aujourd'hui ?",
+    "newEpisode": "Nouvel Épisode",
+    "yourEpisodes": "Vos Épisodes",
+    "selectAll": "Sélectionner tous les épisodes",
+    "viewAll": "Voir Tout",
+    "noEpisodes": "Aucun épisode trouvé",
+    "noEpisodesDescription": "Créez votre premier épisode pour commencer",
+    "createEpisode": "Créer un Épisode",
+    "searchPlaceholder": "Rechercher des épisodes...",
+    "usage": {
+      "title": "Utilisation",
+      "episodes": "Épisodes",
+      "freeTier": "Plan gratuit : 5 épisodes par mois",
+      "upgradePlan": "Mettre à Niveau le Plan"
+    }
+  }
+}
