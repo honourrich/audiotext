@@ -45,11 +45,13 @@ import {
   DropdownMenuItem, 
   DropdownMenuTrigger 
 } from '@/components/ui/dropdown-menu';
-import { useUser, useClerk } from '@clerk/clerk-react';
+import { useUser, useClerk, useAuth } from '@clerk/clerk-react';
 import { Link } from 'react-router-dom';
 import UploadModal from './UploadModal';
 import Logo from './Logo';
 import UsageDisplay from './UsageDisplay';
+import { createCheckoutSession } from '@/lib/stripe';
+import { usageService } from '@/lib/usageService';
 // import { EpisodeService, EpisodeData } from '@/lib/episodeService'; // Disabled - using localStorage only
 import { migrateLocalStorageToSupabase, hasLocalStorageData } from '@/lib/migrationHelper';
 
@@ -83,6 +85,7 @@ interface EpisodeData {
 const Dashboard: React.FC = () => {
   const { user } = useUser();
   const { signOut } = useClerk();
+  const { getToken } = useAuth();
   const handleSignOut = () => {
     signOut({ redirectUrl: '/' });
   };
@@ -97,6 +100,24 @@ const Dashboard: React.FC = () => {
   const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [currentPlan, setCurrentPlan] = useState<string>('Free');
+  const [upgradeLoading, setUpgradeLoading] = useState(false);
+
+  // Fetch current plan
+  useEffect(() => {
+    const fetchPlan = async () => {
+      if (user?.id) {
+        try {
+          const usage = await usageService.getUsageForDisplay(user.id);
+          setCurrentPlan(usage.planName);
+        } catch (error) {
+          console.error('Error fetching plan:', error);
+          setCurrentPlan('Free');
+        }
+      }
+    };
+    fetchPlan();
+  }, [user?.id]);
 
   // Helper function to format duration (handles both number and string)
   const formatDuration = (duration: any): string => {
@@ -466,6 +487,31 @@ const Dashboard: React.FC = () => {
     setBulkDeleteDialogOpen(false);
   };
 
+  // Handle upgrade to Pro
+  const handleUpgrade = async () => {
+    setUpgradeLoading(true);
+    try {
+      // Get Clerk session token (works without template)
+      let token: string | null = null;
+      try {
+        // Try to get token with template first (if configured)
+        token = await getToken({ template: 'supabase' });
+      } catch (templateError) {
+        // Fallback to default session token if template doesn't exist
+        console.log('Supabase template not found, using default token');
+        token = await getToken();
+      }
+      
+      const userEmail = user?.emailAddresses[0]?.emailAddress;
+      
+      await createCheckoutSession('Pro', userEmail, token || undefined);
+    } catch (error) {
+      console.error('Error creating checkout session:', error);
+      alert('Failed to start checkout. Please try again or contact support.');
+      setUpgradeLoading(false);
+    }
+  };
+
   // Calculate usage stats
   const completedEpisodes = episodes.filter(ep => ep.processingStatus === 'completed').length;
   const processingEpisodes = episodes.filter(ep => ep.processingStatus === 'processing').length;
@@ -499,6 +545,18 @@ const Dashboard: React.FC = () => {
 
             {/* Desktop Navigation */}
             <div className="hidden md:flex items-center space-x-4">
+              {currentPlan === 'Free' && (
+                <Button 
+                  variant="default" 
+                  size="sm"
+                  onClick={handleUpgrade}
+                  disabled={upgradeLoading}
+                  className="bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  {upgradeLoading ? 'Loading...' : 'Upgrade to Plus'}
+                </Button>
+              )}
               <Button variant="ghost" size="sm" asChild>
                 <Link to="/settings" className="flex items-center">
                   <Settings className="h-4 w-4 mr-2" />
@@ -582,14 +640,26 @@ const Dashboard: React.FC = () => {
                   />
                 </div>
                 
-                <div className="flex items-center justify-between">
-                  <Button variant="ghost" size="sm" asChild>
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  {currentPlan === 'Free' && (
+                    <Button 
+                      variant="default" 
+                      size="sm"
+                      onClick={handleUpgrade}
+                      disabled={upgradeLoading}
+                      className="bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white w-full"
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      {upgradeLoading ? 'Loading...' : 'Upgrade to Plus'}
+                    </Button>
+                  )}
+                  <Button variant="ghost" size="sm" asChild className="flex-1">
                     <Link to="/settings" className="flex items-center">
                       <Settings className="h-4 w-4 mr-2" />
                       {t('navigation.settings')}
                     </Link>
                   </Button>
-                  <Button variant="ghost" size="sm">
+                  <Button variant="ghost" size="sm" className="flex-1">
                     <Bell className="h-4 w-4 mr-2" />
                     {t('navigation.notifications')}
                   </Button>

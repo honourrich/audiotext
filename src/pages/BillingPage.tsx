@@ -94,7 +94,17 @@ const BillingPage: React.FC = () => {
   const handleManageSubscription = async () => {
     setLoading(true);
     try {
-      const token = await getToken({ template: 'supabase' });
+      // Get Clerk session token (works without template)
+      let token: string | null = null;
+      try {
+        // Try to get token with template first (if configured)
+        token = await getToken({ template: 'supabase' });
+      } catch (templateError) {
+        // Fallback to default session token if template doesn't exist
+        console.log('Supabase template not found, using default token');
+        token = await getToken();
+      }
+      
       const returnUrl = `${window.location.origin}/billing`;
       
       await createCustomerPortalSession(returnUrl, token || undefined);
@@ -115,7 +125,17 @@ const BillingPage: React.FC = () => {
     if (planName === 'Pro') {
       setLoading(true);
       try {
-        const token = await getToken({ template: 'supabase' });
+        // Get Clerk session token (works without template)
+        let token: string | null = null;
+        try {
+          // Try to get token with template first (if configured)
+          token = await getToken({ template: 'supabase' });
+        } catch (templateError) {
+          // Fallback to default session token if template doesn't exist
+          console.log('Supabase template not found, using default token');
+          token = await getToken();
+        }
+        
         const userEmail = user?.emailAddresses[0]?.emailAddress;
         
         await createCheckoutSession(planName, userEmail, token || undefined);
