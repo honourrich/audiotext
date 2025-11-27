@@ -6,23 +6,19 @@ Deno.serve(async (req) => {
   }
 
   try {
-    console.log('Test API function called');
+    // SECURITY: This endpoint should only be used for internal testing
+    // It no longer exposes API key information to prevent leaks
     
-    // Check API key
+    // Check API key exists (but don't expose details)
     const openaiApiKey = Deno.env.get('OPENAI_API_KEY') || Deno.env.get('VITE_OPENAI_API_KEY');
     
     const result = {
       success: true,
-      apiKeyFound: !!openaiApiKey,
-      apiKeyLength: openaiApiKey ? openaiApiKey.length : 0,
-      apiKeyPrefix: openaiApiKey ? openaiApiKey.substring(0, 7) + '...' : 'none',
-      availableEnvVars: Object.keys(Deno.env.toObject()).filter(key => 
-        key.includes('OPENAI') || key.includes('API')
-      ),
-      timestamp: new Date().toISOString()
+      apiKeyConfigured: !!openaiApiKey,
+      // Removed: apiKeyLength, apiKeyPrefix, and availableEnvVars to prevent information leakage
+      timestamp: new Date().toISOString(),
+      message: 'API configuration check completed'
     };
-    
-    console.log('Test result:', result);
     
     return new Response(
       JSON.stringify(result),
@@ -38,7 +34,7 @@ Deno.serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         success: false, 
-        error: error.message,
+        error: 'Internal server error',
         timestamp: new Date().toISOString()
       }),
       { 

@@ -13,6 +13,7 @@ export interface EpisodeData {
   summary: string;
   chapters: any[];
   keywords: string[];
+  quotes?: any[];
   hasAIContent?: boolean;
   aiGeneratedAt?: string;
   audioUrl?: string;
@@ -188,15 +189,22 @@ export class EpisodeService {
 
   // Helper function to map Supabase episode to local format
   private static mapEpisodeToLocalFormat(episode: Episode): EpisodeData {
+    const chapters = Array.isArray(episode.chapters) ? episode.chapters : [];
+    const keywords = Array.isArray(episode.keywords)
+      ? episode.keywords.map(keyword => (typeof keyword === 'string' ? keyword : JSON.stringify(keyword)))
+      : [];
+    const quotes = Array.isArray(episode.quotes) ? episode.quotes : [];
+
     return {
       id: episode.id,
       title: episode.title,
       duration: this.formatDuration(episode.duration || 0),
       transcript: episode.transcript || '',
       summary: episode.summary_short || episode.summary_long || '',
-      chapters: episode.chapters || [],
-      keywords: episode.keywords || [],
-      hasAIContent: !!(episode.summary_short || episode.chapters?.length || episode.keywords?.length),
+      chapters,
+      keywords,
+      quotes,
+      hasAIContent: !!(episode.summary_short || chapters.length || keywords.length),
       aiGeneratedAt: episode.updated_at,
       audioUrl: episode.audio_url || undefined,
       youtubeUrl: episode.youtube_url || undefined,

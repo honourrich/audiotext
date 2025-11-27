@@ -18,6 +18,7 @@ import {
   Brain,
   Settings,
   Sparkles,
+  FileText,
 } from "lucide-react";
 import UploadModal from "./UploadModal";
 import EpisodeList from "./EpisodeList";
@@ -129,10 +130,7 @@ function Home() {
       <header className="border-b bg-white">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-0">
-              <Logo size="md" />
-              <h1 className="text-2xl font-bold -ml-2">podjust</h1>
-            </div>
+            <Logo size="md" />
             <div className="flex items-center space-x-4">
               <Badge variant="secondary">{stats.subscriptionTier} Plan</Badge>
               <Button 
@@ -154,7 +152,9 @@ function Home() {
               <UserButton
                 appearance={{
                   elements: {
-                    avatarBox: "w-8 h-8",
+                    avatarBox: "w-8 h-8 rounded-full aspect-square overflow-hidden bg-primary",
+                    avatarImage: "rounded-full",
+                    avatarFallback: "rounded-full bg-primary text-primary-foreground",
                   },
                 }}
                 afterSignOutUrl="/"
@@ -281,10 +281,10 @@ function Home() {
                 <Card className="cursor-pointer hover:shadow-lg transition-shadow"
                       onClick={() => setShowUploadModal(true)}>
                   <CardHeader>
-                    <Youtube className="w-8 h-8 text-red-600 mb-2" />
-                    <CardTitle>Add YouTube URL</CardTitle>
+                    <FileAudio className="w-8 h-8 text-blue-600 mb-2" />
+                    <CardTitle>Add New Episode</CardTitle>
                     <CardDescription>
-                      Generate notes from a YouTube video
+                      Upload audio files or import from YouTube
                     </CardDescription>
                   </CardHeader>
                 </Card>
@@ -335,7 +335,7 @@ function Home() {
       {/* Upload Modal */}
       <UploadModal
         open={showUploadModal}
-        onClose={() => setShowUploadModal(false)}
+        onOpenChange={setShowUploadModal}
       />
     </div>
   );

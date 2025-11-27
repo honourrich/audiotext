@@ -55,6 +55,7 @@ export interface ResourceItem {
   category?: string;
   description?: string;
   auto_link_enabled: boolean;
+  usage_count?: number;
 }
 
 export interface PersonalizationSettings {

@@ -210,13 +210,13 @@ export const ROLE_PERMISSIONS = {
   },
 } as const;
 
-export const WORKFLOW_TRANSITIONS = {
+export const WORKFLOW_TRANSITIONS: Record<WorkflowStatus, WorkflowStatus[]> = {
   draft: ['in_review'],
   in_review: ['needs_changes', 'approved'],
   needs_changes: ['draft', 'in_review'],
   approved: ['published', 'needs_changes'],
   published: [],
-} as const;
+};
 
 export const COMMENT_COLORS = {
   low: 'bg-gray-100 border-gray-300',

@@ -5,7 +5,6 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { 
   Upload, 
-  Youtube, 
   Play,
   FileAudio,
   ArrowRight,
@@ -24,20 +23,15 @@ interface Step4FirstContentProps {
 
 const Step4FirstContent: React.FC<Step4FirstContentProps> = ({ onNext, onBack }) => {
   const { onboarding, updateFirstContentData, trackEvent } = useOnboarding();
+  const previousType = onboarding?.first_content_data?.type;
+  const initialOption = previousType === 'audio' || previousType === 'demo' ? previousType : null;
   
-  const [selectedOption, setSelectedOption] = React.useState<'audio' | 'youtube' | 'demo' | null>(
-    onboarding?.first_content_data?.type || null
-  );
-  const [youtubeUrl, setYoutubeUrl] = React.useState<string>('');
+  const [selectedOption, setSelectedOption] = React.useState<'audio' | 'demo' | null>(initialOption);
   const [uploadedFile, setUploadedFile] = React.useState<File | null>(null);
   const [dragActive, setDragActive] = React.useState(false);
   const [urlError, setUrlError] = React.useState<string>('');
   const [fileError, setFileError] = React.useState<string>('');
 
-  const validateYouTubeUrl = (url: string): boolean => {
-    const youtubeRegex = /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\/.+/;
-    return youtubeRegex.test(url);
-  };
 
   const validateAudioFile = (file: File): boolean => {
     const allowedTypes = ['audio/mpeg', 'audio/mp4', 'audio/wav', 'audio/m4a'];
@@ -57,21 +51,13 @@ const Step4FirstContent: React.FC<Step4FirstContentProps> = ({ onNext, onBack })
     return true;
   };
 
-  const handleOptionSelect = async (option: 'audio' | 'youtube' | 'demo') => {
+  const handleOptionSelect = async (option: 'audio' | 'demo') => {
     setSelectedOption(option);
     setUrlError('');
     setFileError('');
     await trackEvent('content_option_selected', { option });
   };
 
-  const handleYouTubeUrlChange = (url: string) => {
-    setYoutubeUrl(url);
-    if (url && !validateYouTubeUrl(url)) {
-      setUrlError('Please enter a valid YouTube URL');
-    } else {
-      setUrlError('');
-    }
-  };
 
   const handleDrag = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -115,13 +101,7 @@ const Step4FirstContent: React.FC<Step4FirstContentProps> = ({ onNext, onBack })
   const handleContinue = async () => {
     let contentData: any = { type: selectedOption };
 
-    if (selectedOption === 'youtube') {
-      if (!youtubeUrl || !validateYouTubeUrl(youtubeUrl)) {
-        setUrlError('Please enter a valid YouTube URL');
-        return;
-      }
-      contentData.youtube_url = youtubeUrl;
-    } else if (selectedOption === 'audio') {
+    if (selectedOption === 'audio') {
       if (!uploadedFile) {
         setFileError('Please select an audio file');
         return;
@@ -135,7 +115,6 @@ const Step4FirstContent: React.FC<Step4FirstContentProps> = ({ onNext, onBack })
   };
 
   const isValid = selectedOption === 'demo' || 
-    (selectedOption === 'youtube' && youtubeUrl && !urlError) ||
     (selectedOption === 'audio' && uploadedFile && !fileError);
 
   return (
@@ -144,7 +123,7 @@ const Step4FirstContent: React.FC<Step4FirstContentProps> = ({ onNext, onBack })
       <div className="text-center space-y-4">
         <h2 className="text-3xl font-bold text-foreground">Upload Your First Content</h2>
         <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-          Let's process your first piece of content to show you the power of podjust. 
+          Let's process your first piece of content to show you the power of audiotext. 
           Choose from the options below to get started.
         </p>
       </div>
@@ -178,32 +157,6 @@ const Step4FirstContent: React.FC<Step4FirstContentProps> = ({ onNext, onBack })
           </CardContent>
         </Card>
 
-        {/* YouTube URL */}
-        <Card 
-          className={`cursor-pointer transition-all ${
-            selectedOption === 'youtube' 
-              ? 'ring-2 ring-red-500 shadow-lg' 
-              : 'hover:shadow-md'
-          }`}
-          onClick={() => handleOptionSelect('youtube')}
-        >
-          <CardHeader className="text-center">
-            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Youtube className="w-8 h-8 text-red-600" />
-            </div>
-            <CardTitle>YouTube URL</CardTitle>
-            <p className="text-muted-foreground text-sm">
-              Paste a YouTube video link
-            </p>
-          </CardHeader>
-          <CardContent>
-            <ul className="text-sm text-muted-foreground space-y-1">
-              <li>• Any public YouTube video</li>
-              <li>• Automatic audio extraction</li>
-              <li>• Quick and easy</li>
-            </ul>
-          </CardContent>
-        </Card>
 
         {/* Demo Content */}
         <Card 
@@ -220,7 +173,7 @@ const Step4FirstContent: React.FC<Step4FirstContentProps> = ({ onNext, onBack })
             </div>
             <CardTitle>Try Demo Content</CardTitle>
             <p className="text-muted-foreground text-sm">
-              See podjust in action with sample content
+              See audiotext in action with sample content
             </p>
             <Badge className="bg-green-100 text-green-800 mt-2">Recommended</Badge>
           </CardHeader>
@@ -309,37 +262,6 @@ const Step4FirstContent: React.FC<Step4FirstContentProps> = ({ onNext, onBack })
         </Card>
       )}
 
-      {/* YouTube URL Input */}
-      {selectedOption === 'youtube' && (
-        <Card>
-          <CardHeader>
-            <CardTitle>YouTube Video URL</CardTitle>
-            <p className="text-muted-foreground">Paste the URL of any public YouTube video</p>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <Input
-                placeholder="https://www.youtube.com/watch?v=..."
-                value={youtubeUrl}
-                onChange={(e) => handleYouTubeUrlChange(e.target.value)}
-                className={urlError ? 'border-red-500' : ''}
-              />
-              {urlError && (
-                <div className="flex items-center space-x-2 text-red-600">
-                  <AlertCircle className="w-4 h-4" />
-                  <p className="text-sm">{urlError}</p>
-                </div>
-              )}
-              {youtubeUrl && !urlError && (
-                <div className="flex items-center space-x-2 text-green-600">
-                  <CheckCircle className="w-4 h-4" />
-                  <p className="text-sm">Valid YouTube URL detected</p>
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
       {/* Demo Content Info */}
       {selectedOption === 'demo' && (

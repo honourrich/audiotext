@@ -10,7 +10,6 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import {
   DropdownMenu,
@@ -19,13 +18,11 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { supabase } from "@/lib/supabase";
+import TranscriptChat from './TranscriptChat';
 import {
   Save,
   Download,
-  Copy,
   FileText,
-  BookOpen,
-  Hash,
   Clock,
   Edit3,
   ChevronDown,
@@ -36,6 +33,26 @@ import {
   CheckCircle,
   Loader2,
   User,
+  Scissors,
+  Type,
+  AlignLeft,
+  AlignCenter,
+  AlignRight,
+  Bold,
+  Italic,
+  Underline,
+  Search,
+  Replace,
+  Zap,
+  Target,
+  BarChart3,
+  Hash,
+  Shield,
+  Eye,
+  EyeOff,
+  Sparkles,
+  X,
+  Copy
 } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import ExportManager from '@/components/ExportManager';
@@ -46,31 +63,7 @@ interface ContentEditorProps {
   episodeId?: string;
 }
 
-interface Chapter {
-  id: string;
-  title: string;
-  startTime: string;
-  endTime: string;
-  summary: string;
-}
 
-interface GeneratedContent {
-  summary: {
-    short: string;
-    long: string;
-  };
-  chapters: Array<{
-    timestamp: string;
-  title: string;
-    content: string;
-  }>;
-  keywords: string[];
-  quotes: Array<{
-    text: string;
-    speaker?: string;
-    timestamp?: string;
-  }>;
-}
 
 // Add missing type definitions
 interface ProcessingStage {
@@ -87,20 +80,40 @@ interface ErrorInfo {
 
 interface EpisodeData {
   title: string;
-  duration: string;
+  duration: string | number;
   transcript: string;
-  summary: string;
-  chapters: Chapter[];
-  keywords: string[];
   quotes?: any[];
   hasAIContent?: boolean;
   aiGeneratedAt?: string;
+  summary?: string;
+  chapters?: any[];
+  keywords?: any[];
+  // YouTube-specific fields
+  sourceUrl?: string;
+  source?: string;
+  videoId?: string;
+}
+
+interface GeneratedContent {
+  summary: {
+    short: string;
+    long: string;
+  };
+  chapters: Array<{
+    timestamp: string;
+    title: string;
+    content: string;
+  }>;
+  keywords: string[];
+  quotes: Array<{
+    text: string;
+    timestamp?: string;
+  }>;
 }
 
 const ContentEditor: React.FC<ContentEditorProps> = ({ episodeId = "1" }) => {
   const { toast } = useToast();
   const { user } = useUser();
-  const [activeTab, setActiveTab] = useState("transcript");
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedContent, setGeneratedContent] = useState<GeneratedContent | null>(null);
@@ -110,17 +123,11 @@ const ContentEditor: React.FC<ContentEditorProps> = ({ episodeId = "1" }) => {
     title: "Untitled Episode",
     duration: "00:00",
     transcript: "",
-    summary: "",
-    chapters: [] as Chapter[],
-    keywords: [] as string[],
   });
 
   // Processing status state
   const [processingStages, setProcessingStages] = useState<ProcessingStage[]>([
     { id: 'analysis', name: 'Analyzing Content', status: 'pending', progress: 0 },
-    { id: 'summary', name: 'Generate Summary', status: 'pending', progress: 0 },
-    { id: 'chapters', name: 'Create Chapters', status: 'pending', progress: 0 },
-    { id: 'keywords', name: 'Extract Keywords', status: 'pending', progress: 0 },
     { id: 'finalize', name: 'Finalizing', status: 'pending', progress: 0 }
   ]);
   const [currentStage, setCurrentStage] = useState<string>('');
@@ -138,121 +145,77 @@ const ContentEditor: React.FC<ContentEditorProps> = ({ episodeId = "1" }) => {
   // Ref to track if generation is in progress to prevent multiple calls
   const isGeneratingRef = useRef(false);
 
-  // Speaker names state
-  const [speakerNames, setSpeakerNames] = useState({
-    speaker1: 'Speaker 1',
-    speaker2: 'Speaker 2'
-  });
 
-  // Speaker detection and formatting
-  const detectSpeakers = (transcript: string): string => {
-    if (!transcript || transcript.trim().length === 0) {
-      return transcript;
-    }
+  // Text processing tools state
+  const [showTextTools, setShowTextTools] = useState(true);
+  const [searchText, setSearchText] = useState('');
+  const [replaceText, setReplaceText] = useState('');
+  const [showStats, setShowStats] = useState(true);
+  
+  // Undo/Redo functionality
+  const [transcriptHistory, setTranscriptHistory] = useState<string[]>([]);
+  const [historyIndex, setHistoryIndex] = useState(-1);
+  
+  // Censoring toggle states
+  const [censoringEnabled, setCensoringEnabled] = useState(false);
+  const [censoringStyle, setCensoringStyle] = useState<'asterisks' | 'dashes' | 'clean' | 'remove'>('asterisks');
+  const [originalTranscript, setOriginalTranscript] = useState<string>('');
+  
+  // Text processing toggle states
+  const [cleanSpacesEnabled, setCleanSpacesEnabled] = useState(false);
+  const [addBreaksEnabled, setAddBreaksEnabled] = useState(false);
+  const [originalTextForSpaces, setOriginalTextForSpaces] = useState<string>('');
+  const [originalTextForBreaks, setOriginalTextForBreaks] = useState<string>('');
+  
+  const [showChat, setShowChat] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
 
-    // Try to detect existing speaker patterns first
-    const existingSpeakerPattern = /^(Speaker \d+|Host|Guest|Interviewer|Interviewee|Person \d+):/m;
-    if (existingSpeakerPattern.test(transcript)) {
-      return transcript; // Already has speaker labels
-    }
 
-    // Split transcript into sentences/paragraphs
-    const sentences = transcript.split(/(?<=[.!?])\s+/).filter(s => s.trim().length > 0);
-    
-    if (sentences.length < 2) {
-      return transcript; // Not enough content to detect speakers
-    }
 
-    // Group sentences by speaker to avoid fragmentation
-    const speakerGroups: { speaker: number; sentences: string[] }[] = [];
-    let currentSpeaker = 1;
-    let currentGroup: string[] = [];
-    let sentenceCount = 0;
-
-    for (let i = 0; i < sentences.length; i++) {
-      const sentence = sentences[i].trim();
-      
-      // Check for natural speaker change indicators
-      const isQuestion = sentence.includes('?');
-      const isShortResponse = sentence.length < 50;
-      const isGreeting = /^(hi|hello|hey|thanks|thank you|yes|no|okay|ok|sure|absolutely|exactly|right)/i.test(sentence);
-      const isTransition = /^(so|now|well|actually|however|but|and|also|furthermore|moreover)/i.test(sentence);
-      const isAgreement = /^(yes|yeah|yep|absolutely|exactly|right|correct|true|agreed)/i.test(sentence);
-      const isDisagreement = /^(no|nope|not really|disagree|actually|but|however)/i.test(sentence);
-      
-      // More conservative speaker change detection
-      let shouldChangeSpeaker = false;
-      
-      // Only change speaker for clear indicators
-      if (isQuestion && sentenceCount > 0) {
-        shouldChangeSpeaker = true;
-      }
-      // Change speaker for very short responses after a longer statement
-      else if (isShortResponse && (isGreeting || isAgreement || isDisagreement) && sentenceCount > 2) {
-        shouldChangeSpeaker = true;
-      }
-      // Change speaker for major transitions (new topic)
-      else if (isTransition && sentenceCount > 3) {
-        shouldChangeSpeaker = true;
-      }
-      // Change speaker after a longer monologue (6-8 sentences)
-      else if (sentenceCount >= 6) {
-        shouldChangeSpeaker = true;
-      }
-      
-      // If we should change speaker, save current group and start new one
-      if (shouldChangeSpeaker && currentGroup.length > 0) {
-        speakerGroups.push({ speaker: currentSpeaker, sentences: [...currentGroup] });
-        currentSpeaker = currentSpeaker === 1 ? 2 : 1;
-        currentGroup = [];
-        sentenceCount = 0;
-      }
-      
-      // Add sentence to current group
-      currentGroup.push(sentence);
-      sentenceCount++;
-    }
-    
-    // Add the last group
-    if (currentGroup.length > 0) {
-      speakerGroups.push({ speaker: currentSpeaker, sentences: currentGroup });
-    }
-
-    // Format the grouped sentences
-    const formattedGroups = speakerGroups.map(group => {
-      const combinedText = group.sentences.join(' ');
-      return `Speaker ${group.speaker}: ${combinedText}`;
-    });
-
-    return formattedGroups.join('\n\n');
-  };
-
-  // Format transcript with speaker labels
-  const formatTranscriptWithSpeakers = (transcript: string): string => {
-    return detectSpeakers(transcript);
-  };
-
-  // Replace speaker names in transcript
-  const replaceSpeakerNames = (transcript: string, speaker1Name: string, speaker2Name: string): string => {
+  // Process transcript for display
+  const processTranscriptForDisplay = (transcript: string): string => {
     if (!transcript) return transcript;
     
-    // More robust replacement - handle different formats
-    let updatedTranscript = transcript
-      .replace(/Speaker 1:/g, `${speaker1Name}:`)
-      .replace(/Speaker 2:/g, `${speaker2Name}:`)
-      .replace(/Speaker 1 /g, `${speaker1Name} `)
-      .replace(/Speaker 2 /g, `${speaker2Name} `);
+    let processed = transcript;
     
-    return updatedTranscript;
+    // Apply censoring if enabled
+    if (censoringEnabled) {
+      processed = applyCensoring(processed, censoringStyle);
+    }
+    
+    return processed;
   };
 
-  // Update speaker names and apply to transcript
-  const updateSpeakerNames = (speaker1: string, speaker2: string) => {
-    setSpeakerNames({ speaker1, speaker2 });
+  // Helper function to parse duration string to seconds
+  const parseDurationToSeconds = (duration: string): number => {
+    if (!duration || duration === '00:00' || duration === '0:00' || duration === '0' || duration === '') return 0;
     
-    // Don't update the transcript here - let the display handle the conversion
-    // The transcript should always be stored with Speaker 1/2 labels
+    console.log('Parsing duration string:', duration);
+    
+    // Handle formats like "1:23:45" or "23:45" or "45"
+    const parts = duration.split(':').map(Number);
+    console.log('Duration parts:', parts);
+    
+    if (parts.length === 3) {
+      // HH:MM:SS format
+      const seconds = parts[0] * 3600 + parts[1] * 60 + parts[2];
+      console.log('Parsed as HH:MM:SS:', seconds, 'seconds');
+      return seconds;
+    } else if (parts.length === 2) {
+      // MM:SS format
+      const seconds = parts[0] * 60 + parts[1];
+      console.log('Parsed as MM:SS:', seconds, 'seconds');
+      return seconds;
+    } else if (parts.length === 1) {
+      // SS format
+      console.log('Parsed as SS:', parts[0], 'seconds');
+      return parts[0];
+    }
+    
+    console.log('Failed to parse duration, returning 0');
+    return 0;
   };
+
 
   // Save episode data to Supabase
   const saveEpisodeData = async (data: Partial<EpisodeData>) => {
@@ -275,6 +238,7 @@ const ContentEditor: React.FC<ContentEditorProps> = ({ episodeId = "1" }) => {
         if (episodeIndex !== -1) {
           storedEpisodes[episodeIndex] = { ...storedEpisodes[episodeIndex], ...data, updatedAt: Date.now() };
           localStorage.setItem('episodes', JSON.stringify(storedEpisodes));
+          localStorage.setItem('episodes_owner', user.id);
         }
       } else {
         // Create new episode in localStorage
@@ -288,6 +252,7 @@ const ContentEditor: React.FC<ContentEditorProps> = ({ episodeId = "1" }) => {
         const storedEpisodes = JSON.parse(localStorage.getItem('episodes') || '[]');
         storedEpisodes.unshift(newEpisode);
         localStorage.setItem('episodes', JSON.stringify(storedEpisodes));
+        localStorage.setItem('episodes_owner', user.id);
         // Update the URL to use the new episode ID
         window.history.replaceState({}, '', `/episode/${newEpisode.id}`);
       }
@@ -330,17 +295,37 @@ const ContentEditor: React.FC<ContentEditorProps> = ({ episodeId = "1" }) => {
         const episode = storedEpisodes.find((ep: any) => ep.id === episodeId);
         
         if (episode) {
+          console.log('📖 LOADING EPISODE DATA:');
+          console.log('📖 Episode ID:', episode.id);
+          console.log('📖 Episode title:', episode.title);
+          console.log('📖 Raw duration value:', episode.duration);
+          console.log('📖 Duration type:', typeof episode.duration);
+          console.log('📖 Duration is finite:', isFinite(episode.duration));
+          console.log('📖 Full episode object:', episode);
+          
           setEpisodeData({
             title: episode.title || "Untitled Episode",
-            duration: episode.duration || "00:00",
+            duration: episode.duration || 0, // Preserve numeric duration, don't convert to string
             transcript: episode.transcript || "",
             summary: episode.summary || "",
             chapters: episode.chapters || [],
             keywords: episode.keywords || [],
             quotes: episode.quotes || [],
             hasAIContent: episode.hasAIContent || false,
-            aiGeneratedAt: episode.aiGeneratedAt
+            aiGeneratedAt: episode.aiGeneratedAt,
+            // Preserve YouTube-specific fields
+            sourceUrl: episode.sourceUrl,
+            source: episode.source,
+            videoId: episode.videoId
           });
+
+          // Reset toggle states when loading new episode
+          setCleanSpacesEnabled(false);
+          setAddBreaksEnabled(false);
+          setCensoringEnabled(false);
+          setOriginalTextForSpaces('');
+          setOriginalTextForBreaks('');
+          setOriginalTranscript('');
 
           // Restore previously generated AI content
           if (episode.hasAIContent && episode.aiGeneratedAt) {
@@ -379,44 +364,8 @@ const ContentEditor: React.FC<ContentEditorProps> = ({ episodeId = "1" }) => {
     loadEpisodeData();
   }, [episodeId, user?.id, toast]);
 
-  // Auto-format transcript with speaker labels when loaded
-  useEffect(() => {
-    if (episodeData.transcript && episodeData.transcript.trim().length > 0) {
-      console.log('Auto-formatting transcript...');
-      console.log('Original transcript sample:', episodeData.transcript.substring(0, 200));
-      
-      const formattedTranscript = formatTranscriptWithSpeakers(episodeData.transcript);
-      console.log('Formatted transcript sample:', formattedTranscript.substring(0, 200));
-      
-      if (formattedTranscript !== episodeData.transcript) {
-        console.log('Transcript needs formatting, updating...');
-        setEpisodeData(prev => ({ ...prev, transcript: formattedTranscript }));
-      } else {
-        console.log('Transcript already formatted');
-      }
-    }
-  }, [episodeData.transcript]);
 
 
-  // Auto-generate content when transcript is available
-  useEffect(() => {
-    const autoGenerateContent = async () => {
-      // Only auto-generate if we have a transcript and haven't generated content yet
-      if (episodeData.transcript && 
-          episodeData.transcript.trim().length > 100 && 
-          !episodeData.hasAIContent && 
-          !isGeneratingRef.current &&
-          !generatedContent) {
-        
-        console.log("Auto-generating content for transcript...");
-        await generateAIContent();
-      }
-    };
-
-    // Small delay to ensure transcript is fully loaded
-    const timer = setTimeout(autoGenerateContent, 1000);
-    return () => clearTimeout(timer);
-  }, [episodeData.transcript, episodeData.hasAIContent, generatedContent]);
 
   // Update processing stage
   const updateProcessingStage = (stageId: string, progress: number, status: ProcessingStage['status']) => {
@@ -429,11 +378,8 @@ const ContentEditor: React.FC<ContentEditorProps> = ({ episodeId = "1" }) => {
       
       // Calculate overall progress using the updated stages
     const stageWeights = {
-      analysis: 20,
-      summary: 30,
-      chapters: 25,
-      keywords: 15,
-      finalize: 10
+      analysis: 50,
+      finalize: 50
     };
     
       const totalProgress = updatedStages.reduce((total, stage) => {
@@ -453,432 +399,6 @@ const ContentEditor: React.FC<ContentEditorProps> = ({ episodeId = "1" }) => {
     }
   };
 
-  const generateAIContent = async () => {
-    if (!episodeData.transcript || episodeData.transcript.trim().length < 100) {
-      return; // Silently return if no transcript
-    }
-
-    // Prevent multiple simultaneous calls
-    if (isGeneratingRef.current) {
-      console.log("Generation already in progress, skipping...");
-      return;
-    }
-
-    isGeneratingRef.current = true;
-    setIsGenerating(true);
-    setProcessingError(null);
-    setOverallProgress(0);
-    
-    try {
-      // Stage 1: Content Analysis
-      updateProcessingStage('analysis', 0, 'processing');
-      setEstimatedTimeRemaining('2-3 minutes');
-      
-      for (let i = 0; i <= 100; i += 25) {
-        updateProcessingStage('analysis', i, 'processing');
-        await new Promise(resolve => setTimeout(resolve, 150));
-      }
-      updateProcessingStage('analysis', 100, 'completed');
-
-      // Stage 2: Generate Summary
-      updateProcessingStage('summary', 0, 'processing');
-      setEstimatedTimeRemaining('1-2 minutes');
-      
-      for (let i = 0; i <= 100; i += 20) {
-        updateProcessingStage('summary', i, 'processing');
-        await new Promise(resolve => setTimeout(resolve, 200));
-      }
-      updateProcessingStage('summary', 100, 'completed');
-
-      // Stage 3: Generate Chapters
-      updateProcessingStage('chapters', 0, 'processing');
-      setEstimatedTimeRemaining('30-60 seconds');
-      
-      for (let i = 0; i <= 100; i += 25) {
-        updateProcessingStage('chapters', i, 'processing');
-        await new Promise(resolve => setTimeout(resolve, 150));
-      }
-      updateProcessingStage('chapters', 100, 'completed');
-
-      // Stage 4: Extract Keywords
-      updateProcessingStage('keywords', 0, 'processing');
-      setEstimatedTimeRemaining('15-30 seconds');
-      
-      for (let i = 0; i <= 100; i += 33) {
-        updateProcessingStage('keywords', i, 'processing');
-        await new Promise(resolve => setTimeout(resolve, 100));
-      }
-      updateProcessingStage('keywords', 100, 'completed');
-
-      // Stage 5: Finalize
-      updateProcessingStage('finalize', 0, 'processing');
-      setEstimatedTimeRemaining('5-10 seconds');
-
-      // Call the Supabase function to generate real AI content
-      console.log('Calling Supabase generate-content function...', {
-        transcriptLength: episodeData.transcript.length,
-        title: episodeData.title,
-        userId: user?.id,
-        episodeId: episodeId
-      });
-
-      // Check if Supabase is properly configured
-      if (!supabase) {
-        throw new Error('Supabase client not configured');
-      }
-
-      // First, let's test if the function exists
-      try {
-        const { data, error } = await supabase.functions.invoke('generate-content', {
-          body: {
-            transcript: episodeData.transcript,
-            videoTitle: episodeData.title,
-            userId: user?.id,
-            episodeId: episodeId,
-            enablePersonalization: true
-          }
-        });
-
-        console.log('Supabase function response:', { data, error });
-
-      if (error) {
-        console.error('Supabase function error:', error);
-        throw new Error(`AI content generation failed: ${error.message}`);
-      }
-
-      if (!data || !data.success) {
-        console.error('Supabase function returned unsuccessful response:', data);
-        throw new Error(data?.error || 'AI content generation failed - no data returned');
-      }
-
-      const generatedContent = data.content;
-      console.log('Generated content received:', generatedContent);
-      setGeneratedContent(generatedContent);
-
-      // Update episode data with generated content
-      const updatedEpisodeData: EpisodeData = {
-        ...episodeData,
-        summary: generatedContent.summary.long,
-        chapters: generatedContent.chapters.map((chapter: any, index: number) => ({
-          id: Date.now().toString() + index,
-          title: chapter.title,
-          startTime: chapter.timestamp,
-          endTime: "00:00",
-          summary: chapter.content
-        })),
-        keywords: generatedContent.keywords,
-        hasAIContent: true,
-        aiGeneratedAt: new Date().toISOString()
-      };
-
-      setEpisodeData(updatedEpisodeData);
-
-      updateProcessingStage('finalize', 100, 'completed');
-      setOverallProgress(100);
-      setEstimatedTimeRemaining('');
-      setCurrentStage('');
-
-      // Auto-save generated content
-      try {
-        await saveEpisodeData({
-          ...updatedEpisodeData,
-          hasAIContent: true,
-          aiGeneratedAt: new Date().toISOString()
-        });
-
-      toast({
-          title: "Content generated automatically!",
-          description: "Summary, chapters, and keywords have been created from your transcript.",
-        });
-
-      } catch (saveError) {
-        console.error("Failed to save generated content:", saveError);
-        setSaveState(prev => ({ ...prev, status: 'error' }));
-      }
-
-    } catch (error) {
-      console.error("Failed to generate AI content:", error);
-      
-      // Try fallback generation with OpenAI API
-      console.log("Attempting fallback generation with OpenAI API...");
-      try {
-        // Generate proper summary using OpenAI API directly
-        const apiKey = import.meta.env.VITE_OPENAI_API_KEY;
-        if (!apiKey) {
-          throw new Error("OpenAI API key not configured");
-        }
-
-        const summaryResponse = await fetch('https://api.openai.com/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${apiKey}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            model: 'gpt-4',
-            messages: [
-              {
-                role: 'system',
-                content: 'You are an expert content creator specializing in podcast and video content analysis. Create engaging, informative summaries that capture the main topics and key insights.'
-              },
-              {
-                role: 'user',
-                content: `Create two versions of a summary for this podcast/video transcript:
-
-1. SHORT (2-3 sentences): A concise, engaging summary that captures the main topics and key insights. Make it compelling for potential listeners.
-
-2. LONG (1 paragraph): A more detailed summary that provides context and highlights the most valuable takeaways.
-
-Format your response as:
-SHORT: [your short summary]
-LONG: [your long summary]
-
-Transcript: ${episodeData.transcript}`
-              }
-            ],
-            max_tokens: 1000,
-            temperature: 0.7,
-          }),
-        });
-
-        if (!summaryResponse.ok) {
-          throw new Error(`OpenAI API error: ${summaryResponse.status}`);
-        }
-
-        const summaryData = await summaryResponse.json();
-        const summaryText = summaryData.choices[0]?.message?.content || '';
-        
-        const shortMatch = summaryText.match(/SHORT:\s*(.*?)(?=LONG:|$)/s);
-        const longMatch = summaryText.match(/LONG:\s*(.*?)$/s);
-
-        // Generate chapters using OpenAI
-        const chaptersResponse = await fetch('https://api.openai.com/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${apiKey}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            model: 'gpt-4',
-            messages: [
-              {
-                role: 'system',
-                content: 'You are an expert content creator. Break transcripts into logical chapters with timestamps and descriptive titles.'
-              },
-              {
-                role: 'user',
-                content: `Break this transcript into 5-8 logical chapters with timestamps and descriptive titles. Each chapter should represent a distinct topic or conversation segment.
-
-Format your response as:
-CHAPTER 1: 00:00:00 - [Descriptive Title]
-[Brief description of what's covered in this chapter]
-
-CHAPTER 2: 00:05:30 - [Descriptive Title]
-[Brief description of what's covered in this chapter]
-
-Continue this pattern for all chapters. Make timestamps realistic based on content length.
-
-Transcript: ${episodeData.transcript}`
-              }
-            ],
-            max_tokens: 1500,
-            temperature: 0.7,
-          }),
-        });
-
-        let chapters = [
-          {
-            timestamp: "00:00",
-            title: "Introduction",
-            content: "Opening remarks and topic introduction"
-          },
-          {
-            timestamp: "05:00",
-            title: "Main Discussion",
-            content: "Core content and key points"
-          },
-          {
-            timestamp: "10:00",
-            title: "Conclusion",
-            content: "Wrap-up and final thoughts"
-          }
-        ];
-
-        if (chaptersResponse.ok) {
-          const chaptersData = await chaptersResponse.json();
-          const chaptersText = chaptersData.choices[0]?.message?.content || '';
-          
-          const chapterMatches = chaptersText.match(/CHAPTER \d+:\s*(\d{2}:\d{2}:\d{2})\s*-\s*(.*?)\n(.*?)(?=CHAPTER \d+:|$)/gs);
-          
-          if (chapterMatches) {
-            chapters = chapterMatches.map(match => {
-              const parts = match.match(/CHAPTER \d+:\s*(\d{2}:\d{2}:\d{2})\s*-\s*(.*?)\n(.*?)$/s);
-              if (parts) {
-                return {
-                  timestamp: parts[1],
-                  title: parts[2].trim(),
-                  content: parts[3].trim()
-                };
-              }
-              return null;
-            }).filter(Boolean);
-          }
-        }
-
-        // Generate keywords using OpenAI
-        const keywordsResponse = await fetch('https://api.openai.com/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${apiKey}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            model: 'gpt-4',
-            messages: [
-              {
-                role: 'system',
-                content: 'You are an expert content creator. Extract SEO-optimized keywords and topics from content.'
-              },
-              {
-                role: 'user',
-                content: `Extract 10-15 SEO-optimized keywords and topics from this content. Include both broad categories and specific terms that would help people discover this content.
-
-Format your response as a simple comma-separated list:
-keyword1, keyword2, keyword3, etc.
-
-Transcript: ${episodeData.transcript}`
-              }
-            ],
-            max_tokens: 500,
-            temperature: 0.7,
-          }),
-        });
-
-        let keywords = ["podcast", "content", "AI", "transcription", "automation"];
-        if (keywordsResponse.ok) {
-          const keywordsData = await keywordsResponse.json();
-          const keywordsText = keywordsData.choices[0]?.message?.content || '';
-          keywords = keywordsText
-            .split(',')
-            .map(keyword => keyword.trim())
-            .filter(keyword => keyword.length > 0)
-            .slice(0, 15);
-        }
-
-        // Generate quotes using OpenAI
-        const quotesResponse = await fetch('https://api.openai.com/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${apiKey}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            model: 'gpt-4',
-            messages: [
-              {
-                role: 'system',
-                content: 'You are an expert content creator. Find the most impactful, quotable moments from transcripts.'
-              },
-              {
-                role: 'user',
-                content: `Find the 5 most impactful, quotable moments from this transcript. Choose quotes that are insightful, memorable, or would perform well on social media.
-
-Format your response as:
-QUOTE 1: "[exact quote text]" - Speaker Name (if identifiable)
-QUOTE 2: "[exact quote text]" - Speaker Name (if identifiable)
-Continue this pattern...
-
-Transcript: ${episodeData.transcript}`
-              }
-            ],
-            max_tokens: 1000,
-            temperature: 0.7,
-          }),
-        });
-
-        let quotes = [
-          {
-            text: episodeData.transcript.split('.')[0] + ".",
-            speaker: "Speaker"
-          }
-        ];
-
-        if (quotesResponse.ok) {
-          const quotesData = await quotesResponse.json();
-          const quotesText = quotesData.choices[0]?.message?.content || '';
-          
-          const quoteMatches = quotesText.match(/QUOTE \d+:\s*"([^"]+)"\s*(?:-\s*([^(]+))?/g);
-          
-          if (quoteMatches) {
-            quotes = quoteMatches.map(match => {
-              const parts = match.match(/QUOTE \d+:\s*"([^"]+)"\s*(?:-\s*([^(]+))?/);
-              if (parts) {
-                return {
-                  text: parts[1].trim(),
-                  speaker: parts[2]?.trim() || "Speaker"
-                };
-              }
-              return null;
-            }).filter(Boolean);
-          }
-        }
-
-        const fallbackContent = {
-          summary: {
-            short: shortMatch?.[1]?.trim() || "AI-generated summary of your content.",
-            long: longMatch?.[1]?.trim() || episodeData.transcript.substring(0, 500) + "..."
-          },
-          chapters: chapters,
-          keywords: keywords,
-          quotes: quotes
-        };
-
-        setGeneratedContent(fallbackContent);
-
-        // Update episode data with fallback content
-        const updatedEpisodeData: EpisodeData = {
-          ...episodeData,
-          summary: fallbackContent.summary.long,
-          chapters: fallbackContent.chapters.map((chapter: any, index: number) => ({
-            id: Date.now().toString() + index,
-            title: chapter.title,
-            startTime: chapter.timestamp,
-            endTime: "00:00",
-            summary: chapter.content
-          })),
-          keywords: fallbackContent.keywords,
-          hasAIContent: true,
-          aiGeneratedAt: new Date().toISOString()
-        };
-
-        setEpisodeData(updatedEpisodeData);
-        updateProcessingStage('finalize', 100, 'completed');
-        setOverallProgress(100);
-        setEstimatedTimeRemaining('');
-        setCurrentStage('');
-
-        // Auto-save fallback content
-        await saveEpisodeData({
-          ...updatedEpisodeData,
-          hasAIContent: true,
-          aiGeneratedAt: new Date().toISOString()
-        });
-
-        toast({
-          title: "Content generated with fallback method",
-          description: "Summary, chapters, and keywords have been created using basic processing.",
-        });
-
-      } catch (fallbackError) {
-        console.error("Fallback generation also failed:", fallbackError);
-        setProcessingError({ type: 'processing', message: 'Content generation failed. Please try again.' });
-      }
-    }
-    } finally {
-      isGeneratingRef.current = false;
-      setIsGenerating(false);
-    }
-  };
 
 
 
@@ -901,13 +421,294 @@ Transcript: ${episodeData.transcript}`
     })));
   };
 
-  const retryProcessing = () => {
-    setProcessingError(null);
-    generateAIContent();
-  };
 
   const handleSave = async () => {
     await saveEpisodeData(episodeData);
+  };
+
+  // Undo/Redo functionality
+  const saveToHistory = (transcript: string) => {
+    const newHistory = transcriptHistory.slice(0, historyIndex + 1);
+    newHistory.push(transcript);
+    setTranscriptHistory(newHistory);
+    setHistoryIndex(newHistory.length - 1);
+  };
+
+  const undo = () => {
+    if (historyIndex > 0) {
+      const newIndex = historyIndex - 1;
+      setHistoryIndex(newIndex);
+      updateContent("transcript", transcriptHistory[newIndex]);
+    }
+  };
+
+  const redo = () => {
+    if (historyIndex < transcriptHistory.length - 1) {
+      const newIndex = historyIndex + 1;
+      setHistoryIndex(newIndex);
+      updateContent("transcript", transcriptHistory[newIndex]);
+    }
+  };
+
+  // Text processing utilities
+  const formatText = (format: 'uppercase' | 'lowercase' | 'title' | 'sentence') => {
+    let formatted = episodeData.transcript;
+    switch (format) {
+      case 'uppercase':
+        formatted = episodeData.transcript.toUpperCase();
+        break;
+      case 'lowercase':
+        formatted = episodeData.transcript.toLowerCase();
+        break;
+      case 'title':
+        formatted = episodeData.transcript.replace(/\b\w/g, l => l.toUpperCase());
+        break;
+      case 'sentence':
+        // Convert to lowercase first
+        formatted = episodeData.transcript.toLowerCase();
+        
+        // Split by sentence endings, keeping the punctuation
+        const parts = formatted.split(/([.!?]+\s*)/);
+        let result = '';
+        
+        for (let i = 0; i < parts.length; i++) {
+          if (i % 2 === 0) {
+            // This is a sentence (not punctuation)
+            const sentence = parts[i].trim();
+            if (sentence.length > 0) {
+              // Find the first letter (skip timestamps like [00:00:00])
+              const match = sentence.match(/^(\[[^\]]*\]\s*)?(.*)/);
+              if (match) {
+                const prefix = match[1] || ''; // Timestamp part like "[00:00:00] "
+                const text = match[2] || '';    // Actual text part
+                if (text.length > 0) {
+                  // Capitalize first letter of the actual text
+                  const capitalized = prefix + text.charAt(0).toUpperCase() + text.slice(1);
+                  result += capitalized;
+                } else {
+                  result += sentence;
+                }
+              } else {
+                result += sentence;
+              }
+            }
+          } else {
+            // This is punctuation and spaces - keep as is
+            result += parts[i];
+          }
+        }
+        
+        formatted = result;
+        break;
+    }
+    saveToHistory(episodeData.transcript);
+    updateContent("transcript", formatted);
+  };
+
+  const toggleCleanSpaces = () => {
+    if (cleanSpacesEnabled) {
+      // Turn off - restore original
+      setCleanSpacesEnabled(false);
+      if (originalTextForSpaces) {
+        saveToHistory(episodeData.transcript);
+        updateContent("transcript", originalTextForSpaces);
+      }
+    } else {
+      // Turn on - save original and apply cleaning
+      setOriginalTextForSpaces(episodeData.transcript);
+      const cleaned = episodeData.transcript
+        .replace(/\s+/g, ' ')
+        .replace(/\n\s+/g, '\n')
+        .trim();
+      saveToHistory(episodeData.transcript);
+      updateContent("transcript", cleaned);
+      setCleanSpacesEnabled(true);
+    }
+  };
+
+  // Censoring functionality
+  const censorWords = [
+    'damn', 'damned', 'damning',
+    'hell', 'hella',
+    'shit', 'shits', 'shitting', 'shitty',
+    'fuck', 'fucks', 'fucking', 'fucked', 'fucker',
+    'bitch', 'bitches', 'bitching',
+    'ass', 'asses', 'asshole', 'assholes',
+    'crap', 'crappy',
+    'stupid', 'stupidity',
+    'idiot', 'idiots', 'idiotic',
+    'dumb', 'dumber', 'dumbest',
+    'suck', 'sucks', 'sucking', 'sucked'
+  ];
+
+  const applyCensoring = (text: string, style: 'asterisks' | 'dashes' | 'clean' | 'remove' = 'asterisks'): string => {
+    let censored = text;
+
+    censorWords.forEach(word => {
+      const regex = new RegExp(`\\b${word}\\b`, 'gi');
+      
+      switch (style) {
+        case 'asterisks':
+          const asteriskReplacement = word.charAt(0) + '*'.repeat(Math.max(1, word.length - 1));
+          censored = censored.replace(regex, asteriskReplacement);
+          break;
+        case 'dashes':
+          const dashReplacement = word.charAt(0) + '-'.repeat(Math.max(1, word.length - 1));
+          censored = censored.replace(regex, dashReplacement);
+          break;
+        case 'clean':
+          const cleanReplacements: { [key: string]: string } = {
+            'damn': 'darn', 'damned': 'darned', 'damning': 'darning',
+            'hell': 'heck', 'hella': 'hecka',
+            'shit': 'shoot', 'shits': 'shoots', 'shitting': 'shooting', 'shitty': 'shooty',
+            'fuck': 'fudge', 'fucks': 'fudges', 'fucking': 'fudging', 'fucked': 'fudged', 'fucker': 'fudger',
+            'bitch': 'witch', 'bitches': 'witches', 'bitching': 'witching',
+            'ass': 'butt', 'asses': 'butts', 'asshole': 'butthole', 'assholes': 'buttholes',
+            'crap': 'carp', 'crappy': 'carppy',
+            'stupid': 'silly', 'stupidity': 'silliness',
+            'idiot': 'goof', 'idiots': 'goofs', 'idiotic': 'goofy',
+            'dumb': 'silly', 'dumber': 'sillier', 'dumbest': 'silliest',
+            'suck': 'stink', 'sucks': 'stinks', 'sucking': 'stinking', 'sucked': 'stunk'
+          };
+          const cleanWord = cleanReplacements[word.toLowerCase()] || word;
+          censored = censored.replace(regex, cleanWord);
+          break;
+        case 'remove':
+          censored = censored.replace(regex, '[CENSORED]');
+          break;
+      }
+    });
+
+    return censored;
+  };
+
+  const toggleCensoring = (style: 'asterisks' | 'dashes' | 'clean' | 'remove') => {
+    if (censoringEnabled && censoringStyle === style) {
+      // Turn off censoring - restore original
+      setCensoringEnabled(false);
+      if (originalTranscript) {
+        saveToHistory(episodeData.transcript);
+        updateContent("transcript", originalTranscript);
+      }
+    } else {
+      // Turn on censoring or change style
+      if (!censoringEnabled) {
+        // First time enabling - save original
+        setOriginalTranscript(episodeData.transcript);
+      }
+      setCensoringStyle(style);
+      setCensoringEnabled(true);
+      
+      const censored = applyCensoring(episodeData.transcript, style);
+      saveToHistory(episodeData.transcript);
+      updateContent("transcript", censored);
+    }
+  };
+
+
+  const toggleAddBreaks = () => {
+    if (addBreaksEnabled) {
+      // Turn off - restore original
+      setAddBreaksEnabled(false);
+      if (originalTextForBreaks) {
+        saveToHistory(episodeData.transcript);
+        updateContent("transcript", originalTextForBreaks);
+      }
+    } else {
+      // Turn on - save original and apply breaks
+      setOriginalTextForBreaks(episodeData.transcript);
+      const withBreaks = episodeData.transcript
+        .replace(/\. /g, '.\n')
+        .replace(/\? /g, '?\n')
+        .replace(/! /g, '!\n');
+      saveToHistory(episodeData.transcript);
+      updateContent("transcript", withBreaks);
+      setAddBreaksEnabled(true);
+    }
+  };
+
+  const searchAndReplace = () => {
+    if (!searchText) return;
+    const regex = new RegExp(searchText, 'gi');
+    const replaced = episodeData.transcript.replace(regex, replaceText);
+    saveToHistory(episodeData.transcript);
+    updateContent("transcript", replaced);
+    setSearchText('');
+    setReplaceText('');
+  };
+
+  // Format duration to precise MM:SS or HH:MM:SS format
+  const formatDurationToMinutes = (duration: string | number): string => {
+    if (!duration || duration === 0 || duration === '0' || duration === '00:00' || duration === '0:00') {
+      return '0:00';
+    }
+    
+    let totalSeconds = 0;
+    
+    // Handle number (assume seconds)
+    if (typeof duration === 'number') {
+      totalSeconds = Math.floor(duration); // Round down to whole seconds
+    }
+    // Handle string format (MM:SS or HH:MM:SS)
+    else if (typeof duration === 'string') {
+      const parts = duration.split(':').map(Number);
+      
+      if (parts.length === 3) {
+        // HH:MM:SS format - return as is
+        return duration;
+      } else if (parts.length === 2) {
+        // MM:SS format - return as is
+        return duration;
+      } else if (parts.length === 1) {
+        // SS format or just a number string
+        totalSeconds = Math.floor(parts[0] || 0);
+      }
+    }
+    
+    // Convert seconds to MM:SS or HH:MM:SS format
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+    
+    if (hours > 0) {
+      return `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    } else {
+      return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+    }
+  };
+
+  const getTranscriptStats = () => {
+    const words = episodeData.transcript.split(/\s+/).filter(w => w.length > 0).length;
+    const characters = episodeData.transcript.length;
+    const charactersNoSpaces = episodeData.transcript.replace(/\s/g, '').length;
+    const paragraphs = episodeData.transcript.split('\n\n').filter(p => p.trim().length > 0).length;
+    const sentences = episodeData.transcript.split(/[.!?]+/).filter(s => s.trim().length > 0).length;
+    const estimatedMinutes = Math.ceil(words / 150); // Average speaking rate
+    
+    return {
+      words,
+      characters,
+      charactersNoSpaces,
+      paragraphs,
+      sentences,
+      estimatedMinutes
+    };
+  };
+
+  // Count censored words in transcript
+  const getCensoredWordsCount = () => {
+    if (!censoringEnabled || !episodeData.transcript) return 0;
+    
+    let count = 0;
+    censorWords.forEach(word => {
+      const regex = new RegExp(`\\b${word}\\b`, 'gi');
+      const matches = episodeData.transcript.match(regex);
+      if (matches) {
+        count += matches.length;
+      }
+    });
+    
+    return count;
   };
 
   const saveNow = async () => {
@@ -927,65 +728,15 @@ Transcript: ${episodeData.transcript}`
     setHasUnsavedChanges(true);
   };
 
-  const addChapter = () => {
-    const newChapter: Chapter = {
-      id: Date.now().toString(),
-      title: "New Chapter",
-      startTime: "00:00",
-      endTime: "00:00",
-      summary: "",
-    };
-    setEpisodeData((prev) => ({
-      ...prev,
-      chapters: [...prev.chapters, newChapter],
-    }));
-    setHasUnsavedChanges(true);
+  const handleTranscriptChange = (value: string) => {
+    // If censoring is enabled, we need to update the original transcript
+    if (censoringEnabled) {
+      setOriginalTranscript(value);
+    }
+    
+    updateContent("transcript", value);
   };
 
-  const updateChapter = (chapterId: string, field: string, value: string) => {
-    setEpisodeData((prev) => ({
-      ...prev,
-      chapters: prev.chapters.map((chapter) =>
-        chapter.id === chapterId ? { ...chapter, [field]: value } : chapter,
-      ),
-    }));
-    setHasUnsavedChanges(true);
-  };
-
-  const deleteChapter = (chapterId: string) => {
-    setEpisodeData((prev) => ({
-      ...prev,
-      chapters: prev.chapters.filter((chapter) => chapter.id !== chapterId),
-    }));
-    setHasUnsavedChanges(true);
-  };
-
-  const addKeyword = () => {
-    const newKeyword = "new keyword";
-    setEpisodeData((prev) => ({
-      ...prev,
-      keywords: [...prev.keywords, newKeyword],
-    }));
-    setHasUnsavedChanges(true);
-  };
-
-  const updateKeyword = (index: number, value: string) => {
-    setEpisodeData((prev) => ({
-      ...prev,
-      keywords: prev.keywords.map((keyword, i) =>
-        i === index ? value : keyword,
-      ),
-    }));
-    setHasUnsavedChanges(true);
-  };
-
-  const deleteKeyword = (index: number) => {
-    setEpisodeData((prev) => ({
-      ...prev,
-      keywords: prev.keywords.filter((_, i) => i !== index),
-    }));
-    setHasUnsavedChanges(true);
-  };
 
   // Auto-save functionality
   useEffect(() => {
@@ -1075,7 +826,7 @@ Transcript: ${episodeData.transcript}`
                 <div className="flex items-center space-x-4 text-sm text-muted-foreground mt-1">
                   <span className="flex items-center space-x-1">
                     <Clock className="w-4 h-4" />
-                    <span>{episodeData.duration}</span>
+                    <span>{formatDurationToMinutes(episodeData.duration)}</span>
                   </span>
                   
                   {/* AI Content Status */}
@@ -1114,403 +865,282 @@ Transcript: ${episodeData.transcript}`
               </div>
             </div>
 
-                <div className="flex items-center space-x-2">
-                    <Button
-                variant="outline" 
-                size="sm"
-                      onClick={generateAIContent}
-                disabled={isGenerating || !episodeData.transcript}
-              >
-                {isGenerating ? (
-                  <>
-                    <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                    Generating...
-                  </>
-                ) : generatedContent ? (
-                  <>
-                      <RefreshCw className="w-4 h-4 mr-2" />
-                      Regenerate AI Content
-                  </>
-                ) : (
-                  <>
-                    <RefreshCw className="w-4 h-4 mr-2" />
-                    Generate AI Content
-                  </>
-                )}
-              </Button>
-                  <Button
-                onClick={saveNow} 
-                disabled={saveState.status === 'saving' || !saveState.hasUnsavedChanges}
-                  >
-                    <Save className="w-4 h-4 mr-2" />
-                    Save Now
-                  </Button>
-                </div>
               </div>
         </div>
       </div>
 
       {/* Main Content */}
       <div className="container mx-auto px-4 py-8">
-        <Tabs
-          value={activeTab}
-          onValueChange={setActiveTab}
-          className="space-y-6"
-        >
-          <TabsList className="grid w-full grid-cols-5">
-            <TabsTrigger
-              value="transcript"
-              className="flex items-center space-x-2"
-            >
-              <FileText className="w-4 h-4" />
-              <span>Transcript</span>
-            </TabsTrigger>
-            <TabsTrigger
-              value="summary"
-              className="flex items-center space-x-2"
-            >
-              <BookOpen className="w-4 h-4" />
-              <span>Summary</span>
-            </TabsTrigger>
-            <TabsTrigger
-              value="chapters"
-              className="flex items-center space-x-2"
-            >
-              <Clock className="w-4 h-4" />
-              <span>Chapters</span>
-            </TabsTrigger>
-            <TabsTrigger
-              value="keywords"
-              className="flex items-center space-x-2"
-            >
-              <Hash className="w-4 h-4" />
-              <span>Keywords</span>
-            </TabsTrigger>
-            <TabsTrigger
-              value="export"
-              className="flex items-center space-x-2"
-            >
-              <Download className="w-4 h-4" />
-              <span>Export</span>
-            </TabsTrigger>
-              </TabsList>
-
-            <TabsContent value="transcript" className="space-y-4">
+        <div className="space-y-6">
               <Card>
                 <CardHeader>
                 <div className="flex items-center justify-between">
                   <div>
                   <CardTitle>Transcript</CardTitle>
                     <CardDescription>
-                       Edit the automatically generated transcript with speaker identification. Changes are
-                        saved automatically.
+                       Edit the automatically generated transcript. Changes are saved automatically.
                     </CardDescription>
                     </div>
                    <div className="flex gap-2">
                      <Button
-                       variant="outline"
+                       variant="default"
                        size="sm"
-                       onClick={() => handleCopy(episodeData.transcript)}
+                       onClick={() => setShowExportModal(true)}
+                       className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white"
                      >
-                       <Copy className="w-4 h-4 mr-2" />
-                       Copy
+                       <Download className="w-4 h-4 mr-2" />
+                       Export
                      </Button>
                    </div>
                 </div>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    {/* Speaker Names Editor */}
-                    <div className="p-4 bg-muted rounded-lg space-y-4">
+                    {/* AI Assistant Section */}
+                    <div className="p-4 bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200 rounded-lg">
                       <div className="flex items-center justify-between">
-                        <h4 className="text-sm font-medium">Speaker Names</h4>
-                        <div className="text-xs text-muted-foreground">
-                          Edit names to replace throughout transcript
+                        <div>
+                          <h4 className="font-medium text-purple-800 flex items-center gap-2">
+                            <Sparkles className="w-4 h-4" />
+                            AI Transcript Assistant
+                          </h4>
+                          <p className="text-sm text-purple-600 mt-1">
+                            Get AI help to refine your transcript - summarize, extract quotes, improve clarity, and more
+                          </p>
+                        </div>
+                        <Button
+                          onClick={() => setShowChat(true)}
+                          className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white"
+                        >
+                          <Sparkles className="w-4 h-4 mr-2" />
+                          Chat with AI
+                        </Button>
+                      </div>
+                    </div>
+
+                    {/* Compact Text Processing Tools */}
+                    <div className="p-3 bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 rounded-lg">
+                      <div className="flex items-center justify-between mb-3">
+                        <h4 className="font-medium text-blue-800 flex items-center gap-2">
+                          <Scissors className="w-4 h-4" />
+                          Tools
+                        </h4>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={undo}
+                            disabled={historyIndex <= 0}
+                            className="h-8 px-2"
+                          >
+                            <Undo className="w-3 h-3" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={redo}
+                            disabled={historyIndex >= transcriptHistory.length - 1}
+                            className="h-8 px-2"
+                          >
+                            <Redo className="w-3 h-3" />
+                          </Button>
                         </div>
                       </div>
                       
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <label className="text-xs font-medium text-muted-foreground">Speaker 1</label>
-                          <div className="flex items-center gap-2">
-                            <div className="w-3 h-3 rounded-full bg-blue-500"></div>
-                            <input
-                              type="text"
-                              value={speakerNames.speaker1}
-                              onChange={(e) => setSpeakerNames(prev => ({ ...prev, speaker1: e.target.value }))}
-                              onBlur={() => updateSpeakerNames(speakerNames.speaker1, speakerNames.speaker2)}
-                              className="flex-1 px-3 py-2 text-sm border border-input bg-background text-foreground rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
-                              placeholder="Enter speaker name"
-                            />
-                          </div>
-                        </div>
-                        
-                        <div className="space-y-2">
-                          <label className="text-xs font-medium text-muted-foreground">Speaker 2</label>
-                          <div className="flex items-center gap-2">
-                            <div className="w-3 h-3 rounded-full bg-green-500"></div>
-                            <input
-                              type="text"
-                              value={speakerNames.speaker2}
-                              onChange={(e) => setSpeakerNames(prev => ({ ...prev, speaker2: e.target.value }))}
-                              onBlur={() => updateSpeakerNames(speakerNames.speaker1, speakerNames.speaker2)}
-                              className="flex-1 px-3 py-2 text-sm border border-input bg-background text-foreground rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
-                              placeholder="Enter speaker name"
-                            />
-                          </div>
-                        </div>
+                      {/* All Text Processing Tools */}
+                      <div className="flex flex-wrap gap-2 mb-3">
+                        {/* Formatting Tools */}
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => formatText('uppercase')}
+                          className="h-8 px-3 text-xs"
+                        >
+                          <Bold className="w-3 h-3 mr-1" />
+                          UPPER
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => formatText('lowercase')}
+                          className="h-8 px-3 text-xs"
+                        >
+                          <Type className="w-3 h-3 mr-1" />
+                          lower
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => formatText('title')}
+                          className="h-8 px-3 text-xs"
+                        >
+                          <Target className="w-3 h-3 mr-1" />
+                          Title
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => formatText('sentence')}
+                          className="h-8 px-3 text-xs"
+                        >
+                          <AlignLeft className="w-3 h-3 mr-1" />
+                          Sentence
+                        </Button>
+
+                        {/* Cleaning Tools */}
+                        <Button
+                          variant={cleanSpacesEnabled ? "default" : "outline"}
+                          size="sm"
+                          onClick={toggleCleanSpaces}
+                          className={`h-8 px-3 text-xs ${
+                            cleanSpacesEnabled 
+                              ? 'bg-blue-500 hover:bg-blue-600 text-white' 
+                              : ''
+                          }`}
+                        >
+                          <Scissors className="w-3 h-3 mr-1" />
+                          {cleanSpacesEnabled ? 'Cleaning Spaces' : 'Clean Spaces'}
+                        </Button>
+                        <Button
+                          variant={addBreaksEnabled ? "default" : "outline"}
+                          size="sm"
+                          onClick={toggleAddBreaks}
+                          className={`h-8 px-3 text-xs ${
+                            addBreaksEnabled 
+                              ? 'bg-purple-500 hover:bg-purple-600 text-white' 
+                              : ''
+                          }`}
+                        >
+                          <AlignLeft className="w-3 h-3 mr-1" />
+                          {addBreaksEnabled ? 'Adding Breaks' : 'Add Breaks'}
+                        </Button>
+
+                        {/* Censoring Tools */}
+                        <Button
+                          variant={censoringEnabled && censoringStyle === 'asterisks' ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => toggleCensoring('asterisks')}
+                          className={`h-8 px-3 text-xs ${
+                            censoringEnabled && censoringStyle === 'asterisks' 
+                              ? 'bg-red-500 hover:bg-red-600 text-white' 
+                              : ''
+                          }`}
+                        >
+                          <Shield className="w-3 h-3 mr-1" />
+                          {censoringEnabled && censoringStyle === 'asterisks' ? 'Censoring *' : 'Censor *'}
+                        </Button>
+                        <Button
+                          variant={censoringEnabled && censoringStyle === 'clean' ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => toggleCensoring('clean')}
+                          className={`h-8 px-3 text-xs ${
+                            censoringEnabled && censoringStyle === 'clean' 
+                              ? 'bg-green-500 hover:bg-green-600 text-white' 
+                              : ''
+                          }`}
+                        >
+                          <Eye className="w-3 h-3 mr-1" />
+                          {censoringEnabled && censoringStyle === 'clean' ? 'Cleaning' : 'Clean Words'}
+                        </Button>
+                        <Button
+                          variant={censoringEnabled && censoringStyle === 'remove' ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => toggleCensoring('remove')}
+                          className={`h-8 px-3 text-xs ${
+                            censoringEnabled && censoringStyle === 'remove' 
+                              ? 'bg-orange-500 hover:bg-orange-600 text-white' 
+                              : ''
+                          }`}
+                        >
+                          <EyeOff className="w-3 h-3 mr-1" />
+                          {censoringEnabled && censoringStyle === 'remove' ? 'Removing' : 'Remove'}
+                        </Button>
                       </div>
-                    </div>
-                    
-                    <Textarea
-                      value={replaceSpeakerNames(episodeData.transcript, speakerNames.speaker1, speakerNames.speaker2)}
-                      onChange={(e) => {
-                        // Convert custom names back to Speaker 1/2 for storage
-                        const revertedTranscript = e.target.value
-                          .replace(new RegExp(`${speakerNames.speaker1}:`, 'g'), 'Speaker 1:')
-                          .replace(new RegExp(`${speakerNames.speaker2}:`, 'g'), 'Speaker 2:');
-                        updateContent("transcript", revertedTranscript);
-                      }}
-                      className="min-h-[500px] font-mono text-sm leading-relaxed"
-                      placeholder="Transcript will appear here with speaker identification..."
-                    />
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
 
-            <TabsContent value="summary" className="space-y-4">
-              <Card>
-                <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div>
-                  <CardTitle>Episode Summary</CardTitle>
-                  <CardDescription>
-                      AI-generated summary of your episode content. Edit as
-                      needed.
-                  </CardDescription>
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleCopy(episodeData.summary)}
-                  >
-                    <Copy className="w-4 h-4 mr-2" />
-                    Copy
-                  </Button>
-                </div>
-                </CardHeader>
-                <CardContent>
-                  <Textarea
-                    value={episodeData.summary}
-                  onChange={(e) => updateContent("summary", e.target.value)}
-                  className="min-h-[300px] leading-relaxed"
-                    placeholder="Episode summary will appear here..."
-                  />
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-          <TabsContent value="chapters" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle>Chapters</CardTitle>
-                    <CardDescription>
-                      Automatically generated chapter markers with timestamps
-                      and summaries.
-                    </CardDescription>
-                  </div>
-                  <Button onClick={addChapter}>
-                    <Clock className="w-4 h-4 mr-2" />
-                    Add Chapter
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {episodeData.chapters.map((chapter, index) => (
-                  <div
-                    key={chapter.id}
-                    className="border rounded-lg p-4 space-y-3"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-2">
-                        <Badge variant="outline">Chapter {index + 1}</Badge>
-                        <span className="text-sm text-muted-foreground">
-                          {chapter.startTime} - {chapter.endTime}
-                        </span>
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => deleteChapter(chapter.id)}
-                        className="text-red-600 hover:text-red-700"
-                      >
-                        Delete
-                      </Button>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                      <Input
-                        placeholder="Chapter title"
-                        value={chapter.title}
-                        onChange={(e) =>
-                          updateChapter(chapter.id, "title", e.target.value)
-                        }
-                      />
-                      <Input
-                        placeholder="Start time (00:00)"
-                        value={chapter.startTime}
-                        onChange={(e) =>
-                          updateChapter(chapter.id, "startTime", e.target.value)
-                        }
-                      />
-                      <Input
-                        placeholder="End time (00:00)"
-                        value={chapter.endTime}
-                        onChange={(e) =>
-                          updateChapter(chapter.id, "endTime", e.target.value)
-                        }
-                      />
-                    </div>
-
-                    <Textarea
-                      placeholder="Chapter summary"
-                      value={chapter.summary}
-                      onChange={(e) =>
-                        updateChapter(chapter.id, "summary", e.target.value)
-                      }
-                      className="min-h-[80px]"
-                    />
-                  </div>
-                ))}
-
-                {episodeData.chapters.length === 0 && (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <Clock className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                    <p>
-                      No chapters yet. Click "Add Chapter" to create
-                      your first chapter marker.
-                    </p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-            <TabsContent value="keywords" className="space-y-4">
-              <Card>
-                <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle>Keywords & Tags</CardTitle>
-                  <CardDescription>
-                      AI-extracted keywords and topics from your content. Add or
-                      remove as needed.
-                  </CardDescription>
-                  </div>
-                  <Button onClick={addKeyword}>
-                    <Hash className="w-4 h-4 mr-2" />
-                    Add Keyword
-                  </Button>
-                </div>
-                </CardHeader>
-                <CardContent>
-                <div className="space-y-4">
-                  <div className="flex flex-wrap gap-2">
-                    {episodeData.keywords.map((keyword, index) => (
-                      <div key={index} className="flex items-center space-x-1">
+                      {/* Search & Replace */}
+                      <div className="flex gap-2">
                         <Input
-                          value={keyword}
-                          onChange={(e) => updateKeyword(index, e.target.value)}
-                          className="w-auto min-w-[120px]"
+                          placeholder="Search..."
+                          value={searchText}
+                          onChange={(e) => setSearchText(e.target.value)}
+                          className="h-8 text-xs flex-1"
+                        />
+                        <Input
+                          placeholder="Replace..."
+                          value={replaceText}
+                          onChange={(e) => setReplaceText(e.target.value)}
+                          className="h-8 text-xs flex-1"
                         />
                         <Button
-                          variant="ghost"
+                          onClick={searchAndReplace}
+                          disabled={!searchText}
                           size="sm"
-                          onClick={() => deleteKeyword(index)}
-                          className="text-red-600 hover:text-red-700 px-2"
+                          className="h-8 px-3 text-xs"
                         >
-                          ×
+                          <Replace className="w-3 h-3 mr-1" />
+                          Replace
                         </Button>
                       </div>
-                    ))}
-                  </div>
 
-                  {episodeData.keywords.length === 0 && (
-                    <div className="text-center py-8 text-muted-foreground">
-                      <Hash className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                      <p>
-                        No keywords yet. Click "Add Keyword" to start
-                        tagging your content.
-                      </p>
+
+                      {/* Quick Stats */}
+                      {showStats && (
+                        <div className="mt-3 pt-3 border-t border-blue-200">
+                          <div className="flex items-center text-xs text-blue-600">
+                            <span className="flex items-center gap-1 mr-2">
+                              <BarChart3 className="w-3 h-3" />
+                              Stats:
+                            </span>
+                            <div className="flex gap-4">
+                              <span>{getTranscriptStats().words} words</span>
+                              <span>{getTranscriptStats().characters} chars</span>
+                              {censoringEnabled && getCensoredWordsCount() > 0 && (
+                                <span className="text-red-600 font-medium">
+                                  {getCensoredWordsCount()} censored
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
-                  )}
 
-                  <Separator />
-
-                  <div>
-                    <h4 className="font-medium mb-2">Keyword Preview</h4>
-                  <div className="flex flex-wrap gap-2">
-                    {episodeData.keywords.map((keyword, index) => (
-                      <Badge key={index} variant="secondary">
-                        {keyword}
-                      </Badge>
-                    ))}
-                    </div>
-                  </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-          <TabsContent value="export" className="space-y-4">
-            {episodeData.transcript ? (
-              <ExportManager episode={{
-                title: episodeData.title,
-                transcript: episodeData.transcript,
-                summary: episodeData.summary || 'No summary available',
-                chapters: episodeData.chapters.length > 0 
-                  ? episodeData.chapters.map(ch => `${ch.startTime} - ${ch.title}: ${ch.summary}`).join('\n')
-                  : 'No chapters available',
-                keywords: episodeData.keywords.length > 0 
-                  ? episodeData.keywords.join(', ')
-                  : 'No keywords available'
-              }} />
-            ) : (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Export Content</CardTitle>
-                  <CardDescription>
-                    Upload and transcribe audio first to enable export functionality
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="text-center py-8">
-                  <Download className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                  <p className="text-muted-foreground mb-4">
-                    No transcript available for export yet.
-                  </p>
-                  <Button 
-                    onClick={generateAIContent}
-                    disabled={isGenerating || !episodeData.transcript}
-                  >
-                    {isGenerating ? (
-                      <>
-                        <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                        Generating Content...
-                      </>
-                    ) : (
-                      <>
-                          <RefreshCw className="w-4 h-4 mr-2" />
-                        Generate AI Content
-                      </>
+                    <Textarea
+                      value={processTranscriptForDisplay(episodeData.transcript)}
+                      onChange={(e) => handleTranscriptChange(e.target.value)}
+                      className="min-h-[500px] font-mono text-sm leading-relaxed"
+                      placeholder="Transcript will appear here..."
+                    />
+                    
+                    {/* Show helpful message if transcript is placeholder */}
+                    {episodeData.transcript.includes('[This is a placeholder transcript') && (
+                      <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                        <div className="flex items-start">
+                          <div className="flex-shrink-0">
+                            <svg className="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
+                              <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                            </svg>
+                          </div>
+                          <div className="ml-3">
+                            <h3 className="text-sm font-medium text-yellow-800">
+                              Placeholder Transcript Detected
+                            </h3>
+                            <div className="mt-2 text-sm text-yellow-700">
+                              <p>This appears to be a placeholder transcript. To get the best AI-generated content, please:</p>
+                              <ul className="mt-2 list-disc list-inside space-y-1">
+                                <li>Go to the original YouTube video</li>
+                                <li>Click "..." → "Open transcript" to copy the real transcript</li>
+                                <li>Paste it here to replace this placeholder</li>
+                                <li>Then use the AI Chat feature in the Export section to refine your content</li>
+                              </ul>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
                     )}
-                        </Button>
+                  </div>
                 </CardContent>
               </Card>
-            )}
-          </TabsContent>
 
           {generatedContent?.quotes && generatedContent.quotes.length > 0 && (
             <Card className="mt-6">
@@ -1530,15 +1160,10 @@ Transcript: ${episodeData.transcript}`
                       <blockquote className="text-lg italic mb-2">
                         "{quote.text}"
                       </blockquote>
-                      {quote.speaker && (
-                        <cite className="text-sm text-muted-foreground">
-                          — {quote.speaker}
-                        </cite>
-                      )}
                                     <Button
                                       variant="ghost"
                                       size="sm"
-                        onClick={() => handleCopy(`"${quote.text}"${quote.speaker ? ` - ${quote.speaker}` : ''}`)}
+                        onClick={() => handleCopy(`"${quote.text}"`)}
                         className="ml-2"
                                     >
                                       <Copy className="w-4 h-4" />
@@ -1550,8 +1175,52 @@ Transcript: ${episodeData.transcript}`
               </Card>
           )}
 
-          </Tabs>
+        </div>
       </div>
+
+      {/* Transcript Chat Modal */}
+      {showChat && (
+        <TranscriptChat
+          transcript={episodeData.transcript}
+          onClose={() => setShowChat(false)}
+          onUpdateTranscript={(updatedTranscript) => {
+            updateContent("transcript", updatedTranscript);
+          }}
+        />
+      )}
+
+      {/* Export Modal */}
+      {showExportModal && episodeData.transcript && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl h-[80vh] flex flex-col animate-in slide-in-from-bottom-4 duration-300">
+            <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-gradient-to-r from-purple-50 to-pink-50">
+              <div className="flex items-center space-x-3">
+                <div className="p-2 bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg">
+                  <Download className="h-5 w-5 text-white" />
+                </div>
+                <h2 className="text-xl font-semibold text-gray-900">Export Content</h2>
+              </div>
+              <button
+                onClick={() => setShowExportModal(false)}
+                className="p-2 hover:bg-gray-100 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2"
+                aria-label="Close export modal"
+              >
+                <X className="h-6 w-6 text-gray-500 hover:text-gray-700" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-6">
+              <ExportManager episode={{
+                title: episodeData.title,
+                transcript: episodeData.transcript,
+                summary: 'No summary available',
+                chapters: 'No chapters available',
+                keywords: 'No keywords available',
+                quotes: episodeData.quotes || []
+              }} />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

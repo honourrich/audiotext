@@ -6,11 +6,32 @@ import { Brain, BarChart3, User, Target } from 'lucide-react';
 import { PersonalityProfile } from '../lib/personalization';
 
 interface PersonalityProfileCardProps {
-  profile: PersonalityProfile;
+  profile?: PersonalityProfile;
   showDetails?: boolean;
 }
 
 export default function PersonalityProfileCard({ profile, showDetails = true }: PersonalityProfileCardProps) {
+  if (!profile) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center space-x-2">
+            <Brain className="w-5 h-5 text-blue-600" />
+            <span>Personality Profile</span>
+            <Badge variant="secondary" className="ml-auto">
+              No analysis yet
+            </Badge>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            We haven&apos;t analyzed your writing style yet. Process a few episodes to unlock personality insights.
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
+
   const personalityTraits = [
     { 
       key: 'openness', 

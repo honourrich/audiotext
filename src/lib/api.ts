@@ -120,14 +120,14 @@ const extractVideoId = (url: string): string | null => {
   return match ? match[1] : null;
 };
 
-// OpenAI API integration for content generation
+// Content generation using Supabase Edge Function (SECURITY: No client-side API keys)
 export const generateContentWithOpenAI = async (transcript: string) => {
   try {
-    const apiKey = import.meta.env.VITE_OPENAI_API_KEY;
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
     
-    if (!apiKey) {
-      console.warn('OpenAI API key not found, using mock data');
-      // Fallback to mock data if no API key
+    if (!supabaseUrl) {
+      console.warn('Supabase configuration not found, using mock data');
+      // Fallback to mock data if no Supabase config
       const summary = await generateSummary(transcript);
       const chapters = await generateChapters(transcript);
       const keywords = await generateKeywords(transcript);
@@ -139,17 +139,32 @@ export const generateContentWithOpenAI = async (transcript: string) => {
       };
     }
 
-    // Real OpenAI API calls
-    const [summary, chapters, keywords] = await Promise.all([
-      generateRealSummary(transcript, apiKey),
-      generateRealChapters(transcript, apiKey),
-      generateRealKeywords(transcript, apiKey)
-    ]);
+    // SECURITY: Use Supabase Edge Function instead of direct OpenAI API calls
+    const response = await fetch(`${supabaseUrl}/functions/v1/generate-content`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+      },
+      body: JSON.stringify({
+        transcript,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Content generation failed: ${response.statusText}`);
+    }
+
+    const result = await response.json();
+    
+    if (!result.success) {
+      throw new Error(result.error || 'Content generation failed');
+    }
 
     return {
-      summary,
-      chapters,
-      keywords,
+      summary: result.summary || '',
+      chapters: result.chapters || [],
+      keywords: result.keywords || [],
     };
   } catch (error) {
     console.error("Failed to generate content with OpenAI:", error);

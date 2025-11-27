@@ -116,10 +116,7 @@ const EpisodePage: React.FC = () => {
                 Back to Dashboard
               </Button>
               
-              <div className="flex items-center gap-0">
-                <Logo size="md" />
-                <span className="text-xl font-bold text-foreground -ml-2">podjust</span>
-              </div>
+              <Logo size="md" />
             </div>
 
             <div className="flex items-center space-x-4">
@@ -148,48 +145,7 @@ const EpisodePage: React.FC = () => {
         </div>
       </div>
 
-      {/* Episode Info */}
-      <div className="bg-card border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex flex-col md:flex-row md:items-start gap-6">
-            {/* Episode Details */}
-            <div className="flex-1">
-              <h1 className="text-2xl font-bold text-foreground mb-2">
-                {episode.title}
-              </h1>
-              
-              <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground mb-4">
-                <div className="flex items-center">
-                  <Calendar className="w-4 h-4 mr-1" />
-                  {new Date(episode.createdAt || episode.updatedAt || Date.now()).toLocaleDateString()}
-                </div>
-                
-                {episode.duration && (
-                  <div className="flex items-center">
-                    <Clock className="w-4 h-4 mr-1" />
-                    {episode.duration}
-                  </div>
-                )}
-                
-                {(episode.youtubeUrl || episode.audioUrl) && (
-                  <Badge variant="outline">
-                    {episode.youtubeUrl ? 'YouTube' : 'Audio File'}
-                  </Badge>
-                )}
-              </div>
-
-              {episode.summary && (
-                <p className="text-foreground leading-relaxed">
-                  {episode.summary.length > 200 
-                    ? `${episode.summary.substring(0, 200)}...` 
-                    : episode.summary
-                  }
-                </p>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
+      {/* Episode Info - Removed duplicate title section */}
 
       {/* Content Editor */}
       <ContentEditor episodeId={id} />

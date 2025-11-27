@@ -300,9 +300,9 @@ export const createNetworkError = (): ErrorInfo =>
 
 export const createAPIError = (service: 'openai' | 'whisper', isRateLimit: boolean = false): ErrorInfo => {
   if (isRateLimit) {
-    return createError('rate_limit', `${service === 'openai' ? 'OpenAI' : 'Whisper'} API rate limit exceeded. Please try again in a few minutes.`, { canRetry: true });
+    return createError('rate_limit', `API rate limit exceeded. Please try again in a few minutes.`, { canRetry: true });
   }
-  return createError('api_error', `${service === 'openai' ? 'OpenAI' : 'Whisper'} API error occurred. Please try again.`, { canRetry: true });
+  return createError('api_error', `API error occurred. Please try again.`, { canRetry: true });
 };
 
 export const createQuotaError = (used: number, limit: number, resetDate: Date): ErrorInfo =>

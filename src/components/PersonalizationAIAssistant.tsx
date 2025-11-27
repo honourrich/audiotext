@@ -96,16 +96,16 @@ const PersonalizationAIAssistant: React.FC<PersonalizationAIAssistantProps> = ({
     setIsLoading(true);
 
     try {
-      // Check OpenAI API key
-      const apiKey = import.meta.env.VITE_OPENAI_API_KEY;
-      if (!apiKey) {
-        throw new Error('OpenAI API key not configured. Please check your environment variables.');
+      // SECURITY: Use Supabase Edge Function instead of direct OpenAI API call
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      if (!supabaseUrl) {
+        throw new Error('Supabase configuration missing. Please check your environment variables.');
       }
 
       // Prepare conversation messages for OpenAI API
       const conversationMessages = [
         {
-          role: 'system',
+          role: 'system' as const,
           content: `You are a helpful AI assistant specializing in content personalization and writing style optimization. You help users understand and improve their personalization settings, brand voice, writing style, and content templates.
 
 Your expertise includes:
@@ -119,24 +119,24 @@ Your expertise includes:
 Be helpful, specific, and provide actionable advice. When discussing personalization features, explain how they work and provide concrete examples.`
         },
         ...messages.map(msg => ({
-          role: msg.role,
+          role: msg.role as 'user' | 'assistant',
           content: msg.content
         })),
         {
-          role: 'user',
+          role: 'user' as const,
           content: userMessage.content
         }
       ];
 
-      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      const response = await fetch(`${supabaseUrl}/functions/v1/chat-completion`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${apiKey}`,
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
         },
         body: JSON.stringify({
-          model: 'gpt-3.5-turbo',
           messages: conversationMessages,
+          model: 'gpt-3.5-turbo',
           temperature: 0.7,
           max_tokens: 1200,
         }),
@@ -144,14 +144,18 @@ Be helpful, specific, and provide actionable advice. When discussing personaliza
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error?.message || `API request failed: ${response.status}`);
+        throw new Error(errorData.error || `API request failed: ${response.status}`);
       }
 
       const data = await response.json();
+      if (!data.success || !data.content) {
+        throw new Error(data.error || 'No response content. Please try again.');
+      }
+
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: data.choices[0]?.message?.content || 'Sorry, I could not generate a response.',
+        content: data.content || 'Sorry, I could not generate a response.',
         timestamp: new Date()
       };
 

@@ -2,7 +2,13 @@
 
 ## ⚠️ CRITICAL: Your API Key Was Leaked
 
-Your OpenAI API key was found **hardcoded** in the repository file `test-whisper.html`. This is why OpenAI disabled it.
+**UPDATE:** This document has been updated after a second API key leak incident. See `SECURITY_BEST_PRACTICES.md` for comprehensive security guidelines.
+
+Your OpenAI API key was leaked and disabled by OpenAI. This may have been due to:
+- Hardcoded keys in repository files (previously `test-whisper.html`)
+- Exposed keys in deployed environments (Vercel/Supabase logs)
+- Client-side API key usage (visible in browser network requests)
+- API key information exposed in API responses or logs
 
 ## ✅ Immediate Actions Required
 
@@ -95,6 +101,15 @@ grep -r "sk_test_" . --exclude-dir=node_modules --exclude-dir=.git
 - ❌ **NEVER** share keys in screenshots, emails, or chat
 - ❌ **NEVER** use production keys in local development
 
+## ✅ Security Fixes Applied
+
+The following security improvements have been implemented:
+
+- [x] **Secured test-api endpoint** - Removed API key information from responses
+- [x] **Removed sensitive logging** - Removed console.log statements exposing API key metadata
+- [x] **Created security documentation** - See `SECURITY_BEST_PRACTICES.md` for comprehensive guidelines
+- [x] **Reviewed client-side usage** - Documented security risks of browser-side API keys
+
 ## 📋 Checklist
 
 - [ ] Created new OpenAI API key
@@ -106,6 +121,7 @@ grep -r "sk_test_" . --exclude-dir=node_modules --exclude-dir=.git
 - [ ] Tested transcription feature works
 - [ ] Tested AI chat feature works
 - [ ] Redeployed application
+- [ ] Reviewed `SECURITY_BEST_PRACTICES.md` for long-term improvements
 
 ## 🧪 Testing After Update
 
@@ -134,5 +150,15 @@ If you still see errors after updating:
 
 ---
 
+## 📚 Additional Resources
+
+- **See `SECURITY_BEST_PRACTICES.md`** for comprehensive security guidelines
+- [OpenAI API Key Safety Guide](https://platform.openai.com/docs/guides/safety-best-practices)
+- [Preventing Unauthorized Usage](https://platform.openai.com/docs/guides/production-best-practices)
+
+---
+
 **Remember:** API keys are like passwords - treat them with the same security level!
+
+**Last Updated:** After second API key leak incident - Security improvements implemented
 

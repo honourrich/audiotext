@@ -6,20 +6,21 @@ import {
   Download, 
   Copy, 
   FileText, 
-  Hash, 
-  MessageSquare,
   Globe,
   Code,
-  Twitter,
-  Linkedin,
-  Youtube,
   Eye,
   Check,
   X,
-  HelpCircle,
-  Users,
+  Sparkles,
+  File,
+  FileSpreadsheet,
   BookOpen,
-  Lightbulb
+  MessageSquare,
+  Rss,
+  Twitter,
+  Linkedin,
+  FileType,
+  Layers
 } from 'lucide-react';
 
 interface ExportManagerProps {
@@ -29,39 +30,25 @@ interface ExportManagerProps {
     summary: string;
     chapters: string;
     keywords: string;
+    quotes?: Array<{
+      text: string;
+      speaker?: string;
+      timestamp?: string;
+    }>;
   };
 }
 
 interface PreviewData {
   title: string;
   content: string;
-  type: 'text' | 'html' | 'json' | 'markdown';
+  type: 'text' | 'html' | 'json' | 'markdown' | 'pdf' | 'docx' | 'csv' | 'xml' | 'rtf' | 'epub' | 'twitter' | 'linkedin' | 'rss' | 'show-notes';
 }
 
 export default function ExportManager({ episode }: ExportManagerProps) {
   const [previewDialog, setPreviewDialog] = useState<PreviewData | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
 
-  // Generate different content formats
-  const generateShortSummary = () => {
-    const sentences = episode.summary.split('.').filter(s => s.trim());
-    return sentences.slice(0, 2).join('.') + '.';
-  };
 
-  const generateDetailedSummary = () => {
-    return episode.summary;
-  };
-
-  const generateAllQuotes = () => {
-    // Extract potential quotes from transcript (sentences in quotes or notable statements)
-    const quotes = episode.transcript
-      .split(/[.!?]/)
-      .filter(sentence => sentence.length > 50 && sentence.length < 200)
-      .slice(0, 5)
-      .map((quote, index) => `"${quote.trim()}."`)
-      .join('\n\n');
-    return quotes || 'No notable quotes found in this episode.';
-  };
 
   const generateMarkdown = () => {
     return `# ${episode.title}
@@ -123,287 +110,180 @@ ${episode.transcript}`;
     }, null, 2);
   };
 
-  const generateTwitterThread = () => {
-    const summary = generateShortSummary();
-    const keyPoints = episode.chapters.split('\n').slice(0, 3);
+  const generateCSV = () => {
+    const chapters = episode.chapters.split('\n').filter(c => c.trim());
+    const keywords = episode.keywords.split(',').map(k => k.trim());
     
-    return `🎙️ New episode: "${episode.title}"
+    let csv = 'Type,Content\n';
+    csv += `Title,"${episode.title.replace(/"/g, '""')}"\n`;
+    csv += `Summary,"${episode.summary.replace(/"/g, '""')}"\n`;
+    csv += `Transcript,"${episode.transcript.replace(/"/g, '""')}"\n`;
+    
+    chapters.forEach((chapter, index) => {
+      csv += `Chapter ${index + 1},"${chapter.replace(/"/g, '""')}"\n`;
+    });
+    
+    keywords.forEach((keyword, index) => {
+      csv += `Keyword ${index + 1},"${keyword.replace(/"/g, '""')}"\n`;
+    });
+    
+    return csv;
+  };
 
-${summary}
+  const generateXML = () => {
+    return `<?xml version="1.0" encoding="UTF-8"?>
+<episode>
+  <title><![CDATA[${episode.title}]]></title>
+  <summary><![CDATA[${episode.summary}]]></summary>
+  <chapters>
+    ${episode.chapters.split('\n').filter(c => c.trim()).map((chapter, index) => 
+      `    <chapter number="${index + 1}"><![CDATA[${chapter}]]></chapter>`
+    ).join('\n')}
+  </chapters>
+  <keywords>
+    ${episode.keywords.split(',').map(k => k.trim()).map(keyword => 
+      `    <keyword><![CDATA[${keyword}]]></keyword>`
+    ).join('\n')}
+  </keywords>
+  <transcript><![CDATA[${episode.transcript}]]></transcript>
+  <exportedAt>${new Date().toISOString()}</exportedAt>
+</episode>`;
+  };
 
-Key topics covered:
-${keyPoints.map((point, i) => `${i + 1}. ${point}`).join('\n')}
+  const generateRTF = () => {
+    return `{\\rtf1\\ansi\\deff0 {\\fonttbl {\\f0 Times New Roman;}}
+{\\colortbl;\\red0\\green0\\blue0;}
+\\f0\\fs24\\cf1
+{\\b ${episode.title}}\\par\\par
+{\\b Summary:}\\par
+${episode.summary}\\par\\par
+{\\b Chapters:}\\par
+${episode.chapters.split('\n').map(chapter => `${chapter}\\par`).join('')}\\par
+{\\b Keywords:}\\par
+${episode.keywords}\\par\\par
+{\\b Full Transcript:}\\par
+${episode.transcript}\\par
+}`;
+  };
 
-#podcast #${episode.keywords.split(',')[0]?.trim().replace(/\s+/g, '')}
-
-🧵 Thread below 👇`;
+  const generateTwitterThread = () => {
+    const maxLength = 280;
+    const sentences = episode.transcript.split(/[.!?]+/).filter(s => s.trim().length > 10);
+    const tweets = [];
+    
+    let currentTweet = `🧵 Thread: ${episode.title}\n\n`;
+    
+    sentences.forEach((sentence, index) => {
+      const cleanSentence = sentence.trim();
+      if (currentTweet.length + cleanSentence.length + 3 < maxLength) {
+        currentTweet += cleanSentence + '. ';
+      } else {
+        tweets.push(currentTweet.trim());
+        currentTweet = `${index + 1}/${sentences.length} ` + cleanSentence + '. ';
+      }
+    });
+    
+    if (currentTweet.trim()) {
+      tweets.push(currentTweet.trim());
+    }
+    
+    return tweets.join('\n\n---\n\n');
   };
 
   const generateLinkedInPost = () => {
-    return `🎙️ Just released: "${episode.title}"
+    return `🎙️ ${episode.title}
 
 ${episode.summary}
 
-Key takeaways:
-${episode.chapters.split('\n').slice(0, 4).map(chapter => `• ${chapter}`).join('\n')}
+📝 Key Takeaways:
+${episode.chapters.split('\n').filter(c => c.trim()).slice(0, 3).map((chapter, index) => 
+  `• ${chapter}`
+).join('\n')}
 
-What resonated most with you? Share your thoughts in the comments!
+🔍 Keywords: ${episode.keywords.split(',').slice(0, 5).join(', ')}
 
-#podcast #content #${episode.keywords.split(',')[0]?.trim().replace(/\s+/g, '')}`;
+#Podcast #Content #Insights #ProfessionalDevelopment`;
   };
 
-  const generateYouTubeDescription = () => {
-    return `${episode.summary}
+  const generateRSS = () => {
+    return `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>${episode.title}</title>
+    <description>${episode.summary}</description>
+    <language>en-us</language>
+    <item>
+      <title>${episode.title}</title>
+      <description><![CDATA[${episode.summary}]]></description>
+      <content:encoded><![CDATA[${episode.transcript}]]></content:encoded>
+      <pubDate>${new Date().toUTCString()}</pubDate>
+      <guid isPermaLink="false">${Date.now()}</guid>
+    </item>
+  </channel>
+</rss>`;
+  };
 
-📋 CHAPTERS:
-${episode.chapters}
+  const generateShowNotes = () => {
+    return `# ${episode.title} - Show Notes
 
-🏷️ TAGS:
-${episode.keywords}
+## Episode Summary
+${episode.summary}
+
+## Chapters & Timestamps
+${episode.chapters.split('\n').filter(c => c.trim()).map((chapter, index) => 
+  `${index + 1}. ${chapter}`
+).join('\n')}
+
+## Key Topics Discussed
+${episode.keywords.split(',').map(k => k.trim()).map(keyword => 
+  `• ${keyword}`
+).join('\n')}
+
+## Full Transcript
+${episode.transcript}
 
 ---
-
-Don't forget to like, subscribe, and hit the notification bell for more content!
-
-Connect with us:
-• Website: [Your Website]
-• Twitter: [Your Twitter]
-• LinkedIn: [Your LinkedIn]
-
-#podcast #${episode.keywords.split(',').slice(0, 3).map(k => k.trim().replace(/\s+/g, '')).join(' #')}`;
+*Generated on ${new Date().toLocaleDateString()}*`;
   };
 
-  // Q&A Extraction Functions
-  const extractQuestionsAndAnswers = () => {
-    const transcript = episode.transcript;
-    const qaPairs = [];
-    
-    // Split transcript into sentences
-    const sentences = transcript.split(/[.!?]+/).filter(s => s.trim().length > 10);
-    
-    for (let i = 0; i < sentences.length - 1; i++) {
-      const currentSentence = sentences[i].trim();
-      const nextSentence = sentences[i + 1].trim();
-      
-      // Look for question patterns
-      const isQuestion = /^(what|how|why|when|where|who|can|could|would|should|do|does|did|is|are|was|were|have|has|had)\b/i.test(currentSentence) ||
-                        currentSentence.includes('?') ||
-                        /^(tell me|explain|describe|share|walk me through)\b/i.test(currentSentence);
-      
-      if (isQuestion && nextSentence.length > 20) {
-        qaPairs.push({
-          question: currentSentence + (currentSentence.endsWith('?') ? '' : '?'),
-          answer: nextSentence + '.'
-        });
-      }
-    }
-    
-    return qaPairs.slice(0, 10); // Limit to 10 Q&A pairs
+  const generateEPUB = () => {
+    // Simplified EPUB structure (would need proper EPUB library for full implementation)
+    return `<?xml version="1.0" encoding="UTF-8"?>
+<package xmlns="http://www.idpf.org/2007/opf" version="3.0">
+  <metadata>
+    <dc:title xmlns:dc="http://purl.org/dc/elements/1.1/">${episode.title}</dc:title>
+    <dc:creator xmlns:dc="http://purl.org/dc/elements/1.1/">Podcast Host</dc:creator>
+    <dc:language xmlns:dc="http://purl.org/dc/elements/1.1/">en</dc:language>
+    <dc:date xmlns:dc="http://purl.org/dc/elements/1.1/">${new Date().toISOString()}</dc:date>
+  </metadata>
+  <manifest>
+    <item id="chapter1" href="chapter1.xhtml" media-type="application/xhtml+xml"/>
+  </manifest>
+  <spine>
+    <itemref idref="chapter1"/>
+  </spine>
+</package>
+
+<!-- Chapter Content -->
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+  <title>${episode.title}</title>
+</head>
+<body>
+  <h1>${episode.title}</h1>
+  <h2>Summary</h2>
+  <p>${episode.summary}</p>
+  <h2>Transcript</h2>
+  <p>${episode.transcript}</p>
+</body>
+</html>`;
   };
 
-  const extractInterviewQuestions = () => {
-    const transcript = episode.transcript;
-    const questions = [];
-    
-    // Look for direct questions in the transcript
-    const questionPatterns = [
-      /[^.!?]*\?/g, // Direct questions ending with ?
-      /(what|how|why|when|where|who|can|could|would|should|do|does|did|is|are|was|were|have|has|had)\s+[^.!?]*[.!?]/gi, // Questions without ?
-      /(tell me|explain|describe|share|walk me through)\s+[^.!?]*[.!?]/gi // Imperative questions
-    ];
-    
-    questionPatterns.forEach(pattern => {
-      const matches = transcript.match(pattern);
-      if (matches) {
-        matches.forEach(match => {
-          const cleanQuestion = match.trim();
-          if (cleanQuestion.length > 15 && cleanQuestion.length < 200) {
-            questions.push(cleanQuestion);
-          }
-        });
-      }
-    });
-    
-    // Remove duplicates and limit
-    return [...new Set(questions)].slice(0, 15);
-  };
 
-  const extractKeyInsights = () => {
-    const transcript = episode.transcript;
-    const insights = [];
-    
-    // Look for insight patterns
-    const insightPatterns = [
-      /(the key|important|crucial|essential|main|primary|fundamental)\s+[^.!?]*[.!?]/gi,
-      /(remember|note|keep in mind|don't forget)\s+[^.!?]*[.!?]/gi,
-      /(insight|lesson|takeaway|learning)\s+[^.!?]*[.!?]/gi,
-      /(pro tip|tip|advice|recommendation)\s+[^.!?]*[.!?]/gi
-    ];
-    
-    insightPatterns.forEach(pattern => {
-      const matches = transcript.match(pattern);
-      if (matches) {
-        matches.forEach(match => {
-          const cleanInsight = match.trim();
-          if (cleanInsight.length > 20 && cleanInsight.length < 300) {
-            insights.push(cleanInsight);
-          }
-        });
-      }
-    });
-    
-    return [...new Set(insights)].slice(0, 8);
-  };
 
-  // Q&A Template Generators using extracted content
-  const generateFAQ = () => {
-    const qaPairs = extractQuestionsAndAnswers();
-    
-    if (qaPairs.length === 0) {
-      return `# Frequently Asked Questions - ${episode.title}
-
-No direct Q&A pairs found in the transcript. This might be a monologue-style episode.
-
-## Episode Summary
-${episode.summary}
-
-## Key Topics Covered
-${episode.chapters.split('\n').filter(c => c.trim()).map((chapter, index) => `${index + 1}. ${chapter}`).join('\n')}`;
-    }
-    
-    const faq = qaPairs.map((qa, index) => {
-      return `Q${index + 1}: ${qa.question}\nA${index + 1}: ${qa.answer}\n`;
-    }).join('\n');
-    
-    return `# Frequently Asked Questions - ${episode.title}
-
-${faq}
-
-Based on the actual conversation in this episode.`;
-  };
-
-  const generateInterviewQuestions = () => {
-    const questions = extractInterviewQuestions();
-    
-    if (questions.length === 0) {
-      return `# Interview Questions - ${episode.title}
-
-No direct questions found in the transcript. This might be a monologue-style episode.
-
-## Episode Summary
-${episode.summary}`;
-    }
-    
-    const questionList = questions.map((question, index) => {
-      return `${index + 1}. ${question}`;
-    }).join('\n');
-    
-    return `# Interview Questions - ${episode.title}
-
-These are actual questions that came up during the episode:
-
-${questionList}
-
-## Episode Context
-${episode.summary}`;
-  };
-
-  const generateStudyGuide = () => {
-    const insights = extractKeyInsights();
-    const chapters = episode.chapters.split('\n').filter(c => c.trim());
-    const keywords = episode.keywords.split(',').map(k => k.trim()).slice(0, 10);
-    
-    return `# Study Guide - ${episode.title}
-
-## Key Topics Covered
-${chapters.map((chapter, index) => `${index + 1}. ${chapter}`).join('\n')}
-
-## Important Terms & Concepts
-${keywords.map(keyword => `• ${keyword}`).join('\n')}
-
-## Key Insights from the Episode
-${insights.map((insight, index) => `${index + 1}. ${insight}`).join('\n')}
-
-## Discussion Questions
-1. How does the main topic relate to current industry trends?
-2. What are the practical applications of the concepts discussed?
-3. How would you implement these ideas in your own work?
-4. What questions do you still have about this topic?
-
-## Episode Summary
-${episode.summary}`;
-  };
-
-  const generateQuizQuestions = () => {
-    const qaPairs = extractQuestionsAndAnswers();
-    
-    if (qaPairs.length === 0) {
-      return `# Quiz Questions - ${episode.title}
-
-No Q&A pairs found in the transcript to create quiz questions from.
-
-## Episode Summary
-${episode.summary}`;
-    }
-    
-    const questions = qaPairs.slice(0, 5).map((qa, index) => {
-      return `Question ${index + 1}: ${qa.question.replace('?', '')}?
-A) [Option A - based on episode content]
-B) [Option B - based on episode content] 
-C) [Option C - based on episode content]
-D) [Option D - based on episode content]
-
-Correct Answer: [Answer based on: ${qa.answer}]
-
-`;
-    }).join('');
-    
-    return `# Quiz Questions - ${episode.title}
-
-${questions}
-
-## Instructions
-• Answer all questions based on the episode content
-• Review the explanations for any incorrect answers
-• Use this as a self-assessment tool
-
-## Episode Summary
-${episode.summary}`;
-  };
-
-  const generateDiscussionPrompts = () => {
-    const questions = extractInterviewQuestions();
-    const insights = extractKeyInsights();
-    
-    const discussionQuestions = questions.slice(0, 5).map((question, index) => {
-      return `${index + 1}. **${question.replace('?', '')}**: Share your thoughts on this question. How does it relate to your experience?`;
-    }).join('\n\n');
-    
-    const insightPrompts = insights.slice(0, 3).map((insight, index) => {
-      return `${index + 1}. **Insight**: "${insight}" - How do you see this applying to your work or life?`;
-    }).join('\n\n');
-    
-    return `# Discussion Prompts - ${episode.title}
-
-Use these prompts to facilitate group discussions or personal reflection based on the actual content from this episode.
-
-## Questions from the Episode
-${discussionQuestions}
-
-## Insights to Discuss
-${insightPrompts}
-
-## General Discussion Questions
-• What was the most surprising insight from this episode?
-• How has this episode changed your perspective on the topic?
-• What action steps will you take based on what you learned?
-• What questions would you ask the guest if you could speak with them directly?
-
-## Episode Context
-${episode.summary}`;
-  };
-
-  const handlePreview = (title: string, content: string, type: 'text' | 'html' | 'json' | 'markdown' = 'text') => {
+  const handlePreview = (title: string, content: string, type: 'text' | 'html' | 'json' | 'markdown' | 'pdf' | 'docx' | 'csv' | 'xml' | 'rtf' | 'epub' | 'twitter' | 'linkedin' | 'rss' | 'show-notes' = 'text') => {
     console.log('Opening preview for:', title); // Debug log
     setPreviewDialog({ title, content, type });
   };
@@ -439,74 +319,28 @@ ${episode.summary}`;
       </div>
       <p className="text-muted-foreground text-sm">Export your content in various formats or copy sections to clipboard</p>
 
-      {/* Quick Copy Section */}
+
+      {/* Export Options */}
       <div>
-        <h3 className="font-medium text-foreground mb-3">Quick Copy</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <h3 className="font-medium text-foreground mb-3">Export Options</h3>
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+          {/* Basic Formats */}
           <button
-            className="flex items-center justify-start h-auto p-4 border border-input rounded-lg hover:bg-muted transition-colors w-full"
-            onClick={() => handlePreview('Short Summary', generateShortSummary())}
+            className="flex items-center justify-start h-auto p-3 border border-input rounded-lg hover:bg-muted transition-colors w-full"
+            onClick={() => handlePreview('Transcript Preview', episode.transcript)}
           >
             <div className="flex items-center space-x-3">
               <FileText className="w-4 h-4" />
               <div className="text-left">
-                <div className="font-medium">Short Summary</div>
-                <div className="text-xs text-muted-foreground">Brief overview</div>
+                <div className="font-medium">Transcript (.txt)</div>
+                <div className="text-xs text-muted-foreground">Plain text</div>
               </div>
               <Eye className="w-4 h-4 ml-auto" />
             </div>
           </button>
 
           <button
-            className="flex items-center justify-start h-auto p-4 border border-input rounded-lg hover:bg-muted transition-colors w-full"
-            onClick={() => handlePreview('Detailed Summary', generateDetailedSummary())}
-          >
-            <div className="flex items-center space-x-3">
-              <FileText className="w-4 h-4" />
-              <div className="text-left">
-                <div className="font-medium">Detailed Summary</div>
-                <div className="text-xs text-muted-foreground">Complete summary</div>
-              </div>
-              <Eye className="w-4 h-4 ml-auto" />
-            </div>
-          </button>
-
-          <button
-            className="flex items-center justify-start h-auto p-4 border border-input rounded-lg hover:bg-muted transition-colors w-full"
-            onClick={() => handlePreview('Keywords', episode.keywords)}
-          >
-            <div className="flex items-center space-x-3">
-              <Hash className="w-4 h-4" />
-              <div className="text-left">
-                <div className="font-medium">Keywords</div>
-                <div className="text-xs text-muted-foreground">SEO tags</div>
-              </div>
-              <Eye className="w-4 h-4 ml-auto" />
-            </div>
-          </button>
-
-          <button
-            className="flex items-center justify-start h-auto p-4 border border-input rounded-lg hover:bg-muted transition-colors w-full"
-            onClick={() => handlePreview('All Quotes', generateAllQuotes())}
-          >
-            <div className="flex items-center space-x-3">
-              <MessageSquare className="w-4 h-4" />
-              <div className="text-left">
-                <div className="font-medium">All Quotes</div>
-                <div className="text-xs text-muted-foreground">Notable statements</div>
-              </div>
-              <Eye className="w-4 h-4 ml-auto" />
-            </div>
-          </button>
-        </div>
-      </div>
-
-      {/* Download Files Section */}
-      <div>
-        <h3 className="font-medium text-foreground mb-3">Download Files</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <button
-            className="flex items-center justify-start h-auto p-4 border border-input rounded-lg hover:bg-muted transition-colors w-full"
+            className="flex items-center justify-start h-auto p-3 border border-input rounded-lg hover:bg-muted transition-colors w-full"
             onClick={() => handlePreview('Markdown Preview', generateMarkdown(), 'markdown')}
           >
             <div className="flex items-center space-x-3">
@@ -520,7 +354,7 @@ ${episode.summary}`;
           </button>
 
           <button
-            className="flex items-center justify-start h-auto p-4 border border-input rounded-lg hover:bg-muted transition-colors w-full"
+            className="flex items-center justify-start h-auto p-3 border border-input rounded-lg hover:bg-muted transition-colors w-full"
             onClick={() => handlePreview('HTML Preview', generateHTML(), 'html')}
           >
             <div className="flex items-center space-x-3">
@@ -534,7 +368,7 @@ ${episode.summary}`;
           </button>
 
           <button
-            className="flex items-center justify-start h-auto p-4 border border-input rounded-lg hover:bg-muted transition-colors w-full"
+            className="flex items-center justify-start h-auto p-3 border border-input rounded-lg hover:bg-muted transition-colors w-full"
             onClick={() => handlePreview('JSON Preview', generateJSON(), 'json')}
           >
             <div className="flex items-center space-x-3">
@@ -548,144 +382,134 @@ ${episode.summary}`;
           </button>
 
           <button
-            className="flex items-center justify-start h-auto p-4 border border-input rounded-lg hover:bg-muted transition-colors w-full"
-            onClick={() => handlePreview('Transcript Preview', episode.transcript)}
+            className="flex items-center justify-start h-auto p-3 border border-input rounded-lg hover:bg-muted transition-colors w-full"
+            onClick={() => handlePreview('CSV Preview', generateCSV(), 'csv')}
           >
             <div className="flex items-center space-x-3">
-              <FileText className="w-4 h-4" />
+              <FileSpreadsheet className="w-4 h-4" />
               <div className="text-left">
-                <div className="font-medium">Transcript (.txt)</div>
-                <div className="text-xs text-muted-foreground">Plain text</div>
-              </div>
-              <Eye className="w-4 h-4 ml-auto" />
-            </div>
-          </button>
-        </div>
-      </div>
-
-      {/* Social Media Templates Section */}
-      <div>
-        <h3 className="font-medium text-foreground mb-3">Social Media Templates</h3>
-        <div className="space-y-3">
-          <button
-            className="flex items-center justify-start h-auto p-4 border border-input rounded-lg hover:bg-muted transition-colors w-full"
-            onClick={() => handlePreview('Twitter Thread', generateTwitterThread())}
-          >
-            <div className="flex items-center space-x-3">
-              <Twitter className="w-4 h-4" />
-              <div className="text-left">
-                <div className="font-medium">Copy Twitter Thread</div>
-                <div className="text-xs text-muted-foreground">Optimized for Twitter</div>
+                <div className="font-medium">CSV (.csv)</div>
+                <div className="text-xs text-muted-foreground">Spreadsheet data</div>
               </div>
               <Eye className="w-4 h-4 ml-auto" />
             </div>
           </button>
 
           <button
-            className="flex items-center justify-start h-auto p-4 border border-input rounded-lg hover:bg-muted transition-colors w-full"
-            onClick={() => handlePreview('LinkedIn Post', generateLinkedInPost())}
+            className="flex items-center justify-start h-auto p-3 border border-input rounded-lg hover:bg-muted transition-colors w-full"
+            onClick={() => handlePreview('XML Preview', generateXML(), 'xml')}
           >
             <div className="flex items-center space-x-3">
-              <Linkedin className="w-4 h-4" />
+              <FileType className="w-4 h-4" />
               <div className="text-left">
-                <div className="font-medium">Copy LinkedIn Post</div>
-                <div className="text-xs text-muted-foreground">Professional format</div>
+                <div className="font-medium">XML (.xml)</div>
+                <div className="text-xs text-muted-foreground">Structured markup</div>
               </div>
               <Eye className="w-4 h-4 ml-auto" />
             </div>
           </button>
 
           <button
-            className="flex items-center justify-start h-auto p-4 border border-input rounded-lg hover:bg-muted transition-colors w-full"
-            onClick={() => handlePreview('YouTube Description', generateYouTubeDescription())}
+            className="flex items-center justify-start h-auto p-3 border border-input rounded-lg hover:bg-muted transition-colors w-full"
+            onClick={() => handlePreview('RTF Preview', generateRTF(), 'rtf')}
           >
             <div className="flex items-center space-x-3">
-              <Youtube className="w-4 h-4" />
+              <File className="w-4 h-4" />
               <div className="text-left">
-                <div className="font-medium">Copy YouTube Description</div>
-                <div className="text-xs text-muted-foreground">Video description</div>
-              </div>
-              <Eye className="w-4 h-4 ml-auto" />
-            </div>
-          </button>
-        </div>
-      </div>
-
-      {/* Q&A Templates Section */}
-      <div>
-        <h3 className="font-medium text-foreground mb-3">Q&A Templates</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <button
-            className="flex items-center justify-start h-auto p-4 border border-input rounded-lg hover:bg-muted transition-colors w-full"
-            onClick={() => handlePreview('FAQ Template', generateFAQ(), 'markdown')}
-          >
-            <div className="flex items-center space-x-3">
-              <HelpCircle className="w-4 h-4" />
-              <div className="text-left">
-                <div className="font-medium">FAQ Template</div>
-                <div className="text-xs text-muted-foreground">Frequently asked questions</div>
+                <div className="font-medium">RTF (.rtf)</div>
+                <div className="text-xs text-muted-foreground">Rich text format</div>
               </div>
               <Eye className="w-4 h-4 ml-auto" />
             </div>
           </button>
 
           <button
-            className="flex items-center justify-start h-auto p-4 border border-input rounded-lg hover:bg-muted transition-colors w-full"
-            onClick={() => handlePreview('Interview Questions', generateInterviewQuestions(), 'markdown')}
-          >
-            <div className="flex items-center space-x-3">
-              <Users className="w-4 h-4" />
-              <div className="text-left">
-                <div className="font-medium">Interview Questions</div>
-                <div className="text-xs text-muted-foreground">For guest interviews</div>
-              </div>
-              <Eye className="w-4 h-4 ml-auto" />
-            </div>
-          </button>
-
-          <button
-            className="flex items-center justify-start h-auto p-4 border border-input rounded-lg hover:bg-muted transition-colors w-full"
-            onClick={() => handlePreview('Study Guide', generateStudyGuide(), 'markdown')}
+            className="flex items-center justify-start h-auto p-3 border border-input rounded-lg hover:bg-muted transition-colors w-full"
+            onClick={() => handlePreview('EPUB Preview', generateEPUB(), 'epub')}
           >
             <div className="flex items-center space-x-3">
               <BookOpen className="w-4 h-4" />
               <div className="text-left">
-                <div className="font-medium">Study Guide</div>
-                <div className="text-xs text-muted-foreground">Educational material</div>
+                <div className="font-medium">EPUB (.epub)</div>
+                <div className="text-xs text-muted-foreground">E-book format</div>
               </div>
               <Eye className="w-4 h-4 ml-auto" />
             </div>
           </button>
 
           <button
-            className="flex items-center justify-start h-auto p-4 border border-input rounded-lg hover:bg-muted transition-colors w-full"
-            onClick={() => handlePreview('Quiz Questions', generateQuizQuestions(), 'markdown')}
-          >
-            <div className="flex items-center space-x-3">
-              <Lightbulb className="w-4 h-4" />
-              <div className="text-left">
-                <div className="font-medium">Quiz Questions</div>
-                <div className="text-xs text-muted-foreground">Assessment questions</div>
-              </div>
-              <Eye className="w-4 h-4 ml-auto" />
-            </div>
-          </button>
-
-          <button
-            className="flex items-center justify-start h-auto p-4 border border-input rounded-lg hover:bg-muted transition-colors w-full"
-            onClick={() => handlePreview('Discussion Prompts', generateDiscussionPrompts(), 'markdown')}
+            className="flex items-center justify-start h-auto p-3 border border-input rounded-lg hover:bg-muted transition-colors w-full"
+            onClick={() => handlePreview('Show Notes Preview', generateShowNotes(), 'show-notes')}
           >
             <div className="flex items-center space-x-3">
               <MessageSquare className="w-4 h-4" />
               <div className="text-left">
-                <div className="font-medium">Discussion Prompts</div>
-                <div className="text-xs text-muted-foreground">Group discussion starters</div>
+                <div className="font-medium">Show Notes (.md)</div>
+                <div className="text-xs text-muted-foreground">Podcast notes</div>
+              </div>
+              <Eye className="w-4 h-4 ml-auto" />
+            </div>
+          </button>
+          <button
+            className="flex items-center justify-start h-auto p-3 border border-input rounded-lg hover:bg-muted transition-colors w-full"
+            onClick={() => handlePreview('Twitter Thread Preview', generateTwitterThread(), 'twitter')}
+          >
+            <div className="flex items-center space-x-3">
+              <Twitter className="w-4 h-4 text-blue-500" />
+              <div className="text-left">
+                <div className="font-medium">Twitter Thread</div>
+                <div className="text-xs text-muted-foreground">Tweet series</div>
+              </div>
+              <Eye className="w-4 h-4 ml-auto" />
+            </div>
+          </button>
+
+          <button
+            className="flex items-center justify-start h-auto p-3 border border-input rounded-lg hover:bg-muted transition-colors w-full"
+            onClick={() => handlePreview('LinkedIn Post Preview', generateLinkedInPost(), 'linkedin')}
+          >
+            <div className="flex items-center space-x-3">
+              <Linkedin className="w-4 h-4 text-blue-600" />
+              <div className="text-left">
+                <div className="font-medium">LinkedIn Post</div>
+                <div className="text-xs text-muted-foreground">Professional post</div>
+              </div>
+              <Eye className="w-4 h-4 ml-auto" />
+            </div>
+          </button>
+
+          <button
+            className="flex items-center justify-start h-auto p-3 border border-input rounded-lg hover:bg-muted transition-colors w-full"
+            onClick={() => handlePreview('RSS Feed Preview', generateRSS(), 'rss')}
+          >
+            <div className="flex items-center space-x-3">
+              <Rss className="w-4 h-4 text-orange-500" />
+              <div className="text-left">
+                <div className="font-medium">RSS Feed (.xml)</div>
+                <div className="text-xs text-muted-foreground">Podcast feed</div>
+              </div>
+              <Eye className="w-4 h-4 ml-auto" />
+            </div>
+          </button>
+
+          <button
+            className="flex items-center justify-start h-auto p-3 border border-input rounded-lg hover:bg-muted transition-colors w-full"
+            onClick={() => handlePreview('Show Notes Preview', generateShowNotes(), 'show-notes')}
+          >
+            <div className="flex items-center space-x-3">
+              <Layers className="w-4 h-4" />
+              <div className="text-left">
+                <div className="font-medium">Podcast Show Notes</div>
+                <div className="text-xs text-muted-foreground">Episode summary</div>
               </div>
               <Eye className="w-4 h-4 ml-auto" />
             </div>
           </button>
         </div>
       </div>
+
+
+
 
       {/* Preview Dialog - Simple Modal */}
       {previewDialog && (
@@ -721,12 +545,27 @@ ${episode.summary}`;
                     className="font-mono text-sm max-h-32 overflow-y-auto"
                   />
                 </div>
+              ) : previewDialog.type === 'twitter' || previewDialog.type === 'linkedin' ? (
+                <div className="space-y-4">
+                  <div className="text-sm text-muted-foreground mb-2">
+                    {previewDialog.type === 'twitter' ? 'Twitter Thread Preview:' : 'LinkedIn Post Preview:'}
+                  </div>
+                  <div className="border rounded-lg p-4 bg-blue-50 max-h-96 overflow-y-auto">
+                    <pre className="whitespace-pre-wrap text-sm">{previewDialog.content}</pre>
+                  </div>
+                  <div className="text-sm text-muted-foreground">Raw Content:</div>
+                  <Textarea
+                    value={previewDialog.content}
+                    readOnly
+                    className="font-mono text-sm max-h-32 overflow-y-auto"
+                  />
+                </div>
               ) : (
                 <Textarea
                   value={previewDialog.content}
                   readOnly
                   className={`w-full h-96 resize-none ${
-                    previewDialog.type === 'json' || previewDialog.type === 'markdown' 
+                    ['json', 'markdown', 'csv', 'xml', 'rtf', 'epub', 'rss', 'show-notes'].includes(previewDialog.type)
                       ? 'font-mono text-sm' 
                       : ''
                   }`}
@@ -760,28 +599,38 @@ ${episode.summary}`;
                   )}
                 </Button>
                 
-                {previewDialog.type !== 'text' && (
-                  <Button
-                    onClick={() => {
-                      const extension = previewDialog.type === 'html' ? 'html' : 
-                                     previewDialog.type === 'json' ? 'json' : 
-                                     previewDialog.type === 'markdown' ? 'md' : 'txt';
-                      const mimeType = previewDialog.type === 'html' ? 'text/html' :
-                                     previewDialog.type === 'json' ? 'application/json' :
-                                     'text/plain';
-                      
-                      handleDownload(
-                        previewDialog.content,
-                        `${episode.title.replace(/[^a-zA-Z0-9]/g, '_')}.${extension}`,
-                        mimeType
-                      );
-                    }}
-                    className="flex items-center space-x-2"
-                  >
-                    <Download className="w-4 h-4" />
-                    <span>Download</span>
-                  </Button>
-                )}
+                <Button
+                  onClick={() => {
+                    const getExtensionAndMimeType = (type: string) => {
+                      switch (type) {
+                        case 'html': return { ext: 'html', mime: 'text/html' };
+                        case 'json': return { ext: 'json', mime: 'application/json' };
+                        case 'markdown': return { ext: 'md', mime: 'text/markdown' };
+                        case 'csv': return { ext: 'csv', mime: 'text/csv' };
+                        case 'xml': return { ext: 'xml', mime: 'application/xml' };
+                        case 'rtf': return { ext: 'rtf', mime: 'application/rtf' };
+                        case 'epub': return { ext: 'epub', mime: 'application/epub+zip' };
+                        case 'twitter': return { ext: 'txt', mime: 'text/plain' };
+                        case 'linkedin': return { ext: 'txt', mime: 'text/plain' };
+                        case 'rss': return { ext: 'xml', mime: 'application/rss+xml' };
+                        case 'show-notes': return { ext: 'md', mime: 'text/markdown' };
+                        default: return { ext: 'txt', mime: 'text/plain' };
+                      }
+                    };
+                    
+                    const { ext, mime } = getExtensionAndMimeType(previewDialog.type);
+                    
+                    handleDownload(
+                      previewDialog.content,
+                      `${episode.title.replace(/[^a-zA-Z0-9]/g, '_')}.${ext}`,
+                      mime
+                    );
+                  }}
+                  className="flex items-center space-x-2"
+                >
+                  <Download className="w-4 h-4" />
+                  <span>Download</span>
+                </Button>
               </div>
             </div>
           </div>

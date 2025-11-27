@@ -189,17 +189,23 @@ export class SocialMediaAPI {
 
   static async deleteUserData(userId: string) {
     // Delete all social media data for user
-    const { error: postsError } = await supabase
-      .from('social_media_posts')
-      .delete()
-      .in('profile_id', 
-        supabase
-          .from('social_media_profiles')
-          .select('id')
-          .eq('user_id', userId)
-      );
+    const { data: profiles, error: profilesFetchError } = await supabase
+      .from('social_media_profiles')
+      .select('id')
+      .eq('user_id', userId);
 
-    if (postsError) throw postsError;
+    if (profilesFetchError) throw profilesFetchError;
+
+    const profileIds = (profiles || []).map(profile => profile.id);
+
+    if (profileIds.length > 0) {
+      const { error: postsError } = await supabase
+        .from('social_media_posts')
+        .delete()
+        .in('profile_id', profileIds);
+
+      if (postsError) throw postsError;
+    }
 
     const { error: analysisError } = await supabase
       .from('social_media_style_analysis')
@@ -208,12 +214,14 @@ export class SocialMediaAPI {
 
     if (analysisError) throw analysisError;
 
-    const { error: profilesError } = await supabase
-      .from('social_media_profiles')
-      .delete()
-      .eq('user_id', userId);
+    if (profileIds.length > 0) {
+      const { error: profilesError } = await supabase
+        .from('social_media_profiles')
+        .delete()
+        .in('id', profileIds);
 
-    if (profilesError) throw profilesError;
+      if (profilesError) throw profilesError;
+    }
   }
 
   // Social Media Scraping (placeholder for external API integration)
@@ -248,56 +256,35 @@ export class SocialMediaAPI {
     }, {} as Record<string, SocialMediaPost[]>);
 
     try {
-      // Call OpenAI API for style analysis
-      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      // SECURITY: Use Supabase Edge Function instead of direct OpenAI API call
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      if (!supabaseUrl) {
+        throw new Error('Supabase configuration missing. Please check your environment variables.');
+      }
+
+      const response = await fetch(`${supabaseUrl}/functions/v1/social-media-analysis`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${import.meta.env.VITE_OPENAI_API_KEY}`,
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
         },
         body: JSON.stringify({
-          model: 'gpt-4',
-          messages: [
-            {
-              role: 'system',
-              content: `You are a writing style analyst. Analyze the following social media posts and provide a detailed writing style profile. Return a JSON object with the following structure:
-              {
-                "analysis_data": {
-                  "tone": "professional/casual/humorous/serious",
-                  "formality": 0.0-1.0,
-                  "humor_style": "description",
-                  "vocabulary_level": "basic/intermediate/advanced",
-                  "common_phrases": ["phrase1", "phrase2"],
-                  "storytelling_approach": "description",
-                  "emotional_expression": "description",
-                  "sentence_structure": "short/medium/long/varied",
-                  "platform_differences": {}
-                },
-                "style_profile": {
-                  "writing_style": "description",
-                  "personality_traits": ["trait1", "trait2"],
-                  "content_themes": ["theme1", "theme2"],
-                  "engagement_patterns": {}
-                },
-                "confidence_score": 0.0-1.0
-              }`
-            },
-            {
-              role: 'user',
-              content: `Analyze these social media posts for writing style:\n\n${combinedContent}`
-            }
-          ],
-          temperature: 0.3,
-          max_tokens: 2000
-        })
+          posts: posts,
+          analysisType: 'style',
+        }),
       });
 
       if (!response.ok) {
-        throw new Error(`OpenAI API error: ${response.statusText}`);
+        const errorData = await response.json();
+        throw new Error(errorData.error || `API error: ${response.statusText}`);
       }
 
       const result = await response.json();
-      const analysisResult = JSON.parse(result.choices[0].message.content);
+      if (!result.success || !result.analysis) {
+        throw new Error(result.error || 'No analysis data returned');
+      }
+
+      const analysisResult = result.analysis;
 
       const styleAnalysis: Omit<SocialMediaStyleAnalysis, 'id' | 'created_at' | 'updated_at'> = {
         user_id: userId,

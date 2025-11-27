@@ -1,27 +1,23 @@
 // YouTube video transcription using OpenAI Whisper API
 import OpenAI from "openai";
 
-// Initialize OpenAI client
+// SECURITY: Removed client-side OpenAI client initialization
+// All API calls now go through Supabase Edge Functions
+// This function is kept for backward compatibility but is no longer used
 const getOpenAIClient = () => {
-  const apiKey = import.meta.env.VITE_OPENAI_API_KEY;
-  if (!apiKey) {
-    throw new Error(
-      "OpenAI API key not found. Please add VITE_OPENAI_API_KEY to your environment variables.",
-    );
-  }
-  return new OpenAI({
-    apiKey,
-    dangerouslyAllowBrowser: true, // Note: In production, this should be done on the backend
-  });
+  throw new Error(
+    "Direct OpenAI client access is disabled for security. Please use Supabase Edge Functions instead.",
+  );
 };
 
-// Check if OpenAI API key is available
+// Check if Supabase is configured (SECURITY: No client-side API keys needed)
 export const isOpenAIAvailable = (): boolean => {
-  const apiKey = import.meta.env.VITE_OPENAI_API_KEY;
-  const isAvailable = !!apiKey && apiKey.trim().length > 0;
-  console.log("OpenAI API key availability check:", {
-    hasKey: !!apiKey,
-    keyLength: apiKey ? apiKey.length : 0,
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+  const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+  const isAvailable = !!supabaseUrl && !!supabaseAnonKey;
+  console.log("Supabase configuration check:", {
+    hasSupabaseUrl: !!supabaseUrl,
+    hasSupabaseKey: !!supabaseAnonKey,
     isAvailable,
   });
   return isAvailable;
@@ -74,14 +70,15 @@ export const downloadYouTubeAudio = async (videoId: string): Promise<Blob> => {
   );
 };
 
-// Transcribe audio using OpenAI Whisper API
+// Transcribe audio using Supabase Edge Function (SECURITY: No client-side API keys)
 export const transcribeAudioWithWhisper = async (
   audioBlob: Blob,
   filename: string = "audio.mp3",
 ): Promise<string> => {
-  if (!isOpenAIAvailable()) {
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+  if (!supabaseUrl) {
     throw new Error(
-      "OpenAI API key not configured. Please add VITE_OPENAI_API_KEY to your environment variables.",
+      "Supabase configuration missing. Please check your environment variables.",
     );
   }
 
@@ -90,8 +87,6 @@ export const transcribeAudioWithWhisper = async (
     console.log("Audio blob size:", audioBlob.size, "bytes");
     console.log("Audio blob type:", audioBlob.type);
 
-    const openai = getOpenAIClient();
-
     // Validate audio file size (Whisper API has a 25MB limit)
     if (audioBlob.size > 25 * 1024 * 1024) {
       throw new Error(
@@ -99,67 +94,79 @@ export const transcribeAudioWithWhisper = async (
       );
     }
 
-    // Create a File object from the blob with proper MIME type
-    const audioFile = new File([audioBlob], filename, {
-      type: audioBlob.type || "audio/mpeg",
+    // Convert blob to base64
+    const base64Audio = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const result = reader.result as string;
+        const base64 = result.split(',')[1]; // Remove data:audio/...;base64, prefix
+        resolve(base64);
+      };
+      reader.onerror = () => reject(new Error('Failed to read audio blob'));
+      reader.readAsDataURL(audioBlob);
     });
 
-    console.log("Calling OpenAI Whisper API with file:", {
-      name: audioFile.name,
-      size: audioFile.size,
-      type: audioFile.type,
+    console.log("Calling Supabase Edge Function for transcription:", {
+      filename,
+      size: audioBlob.size,
+      type: audioBlob.type,
     });
 
-    const transcription = await openai.audio.transcriptions.create({
-      file: audioFile,
-      model: "whisper-1",
-      language: "en", // You can make this configurable
-      response_format: "text",
-      temperature: 0.2, // Lower temperature for more consistent results
+    // Call Supabase Edge Function
+    const response = await fetch(`${supabaseUrl}/functions/v1/audio-transcribe`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+      },
+      body: JSON.stringify({
+        audioFile: base64Audio,
+        fileName: filename,
+        fileSize: audioBlob.size,
+      }),
     });
 
-    console.log("Whisper transcription completed successfully");
-    console.log("Transcription length:", transcription.length);
-    console.log(
-      "Transcription preview:",
-      transcription.substring(0, 200) + "...",
-    );
-
-    // Validate the transcription result
-    if (
-      !transcription ||
-      typeof transcription !== "string" ||
-      transcription.trim().length === 0
-    ) {
-      throw new Error("Whisper API returned empty transcription");
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      const errorMessage = errorData.error || `Transcription failed: ${response.statusText}`;
+      
+      if (response.status === 401) {
+        throw new Error("Authentication failed. Please check your configuration.");
+      }
+      if (response.status === 429) {
+        throw new Error("Rate limit exceeded. Please try again later.");
+      }
+      if (response.status === 413) {
+        throw new Error("Audio file is too large for Whisper API (max 25MB).");
+      }
+      throw new Error(`Transcription failed: ${errorMessage}`);
     }
 
-    return transcription.trim();
+    const result = await response.json();
+    
+    if (!result.success || !result.transcript || result.transcript.trim().length === 0) {
+      throw new Error(result.error || "No transcription text received");
+    }
+
+    console.log("Whisper transcription completed successfully");
+    console.log("Transcription length:", result.transcript.length);
+    console.log(
+      "Transcription preview:",
+      result.transcript.substring(0, 200) + "...",
+    );
+
+    return result.transcript.trim();
   } catch (error) {
-    console.error("Whisper API error details:", {
+    console.error("Transcription error details:", {
       error,
       message: error instanceof Error ? error.message : "Unknown error",
       stack: error instanceof Error ? error.stack : undefined,
     });
 
     if (error instanceof Error) {
-      // Check for specific OpenAI API errors
-      if (error.message.includes("401")) {
-        throw new Error(
-          "Invalid OpenAI API key. Please check your VITE_OPENAI_API_KEY.",
-        );
-      }
-      if (error.message.includes("429")) {
-        throw new Error(
-          "OpenAI API rate limit exceeded. Please try again later.",
-        );
-      }
-      if (error.message.includes("413")) {
-        throw new Error("Audio file is too large for Whisper API (max 25MB).");
-      }
-      throw new Error(`Whisper API failed: ${error.message}`);
+      throw error;
     }
-    throw new Error("Failed to transcribe audio with Whisper API");
+    throw new Error("Failed to transcribe audio");
   }
 };
 

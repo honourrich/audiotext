@@ -28,7 +28,7 @@ import {
   X
 } from 'lucide-react';
 import { ResourceItem } from '../lib/personalization';
-// import { supabase } from '../lib/supabase'; // Disabled - using localStorage only
+import { supabase } from '../lib/supabase';
 import { useToast } from './ui/use-toast';
 
 interface ResourceLinkManagerProps {

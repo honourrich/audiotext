@@ -348,19 +348,14 @@ function WorkflowProgress({ currentStatus }: { currentStatus: WorkflowStatus }) 
   );
 }
 
-function getActionLabel(currentStatus: WorkflowStatus, targetStatus: WorkflowStatus): string {
-  switch (targetStatus) {
-    case 'in_review':
-      return 'Submit for Review';
-    case 'approved':
-      return 'Approve';
-    case 'published':
-      return 'Publish';
-    case 'needs_changes':
-      return 'Request Changes';
-    case 'draft':
-      return 'Return to Draft';
-    default:
-      return targetStatus.replace('_', ' ');
-  }
+const ACTION_LABELS: Record<WorkflowStatus, string> = {
+  draft: 'Return to Draft',
+  in_review: 'Submit for Review',
+  needs_changes: 'Request Changes',
+  approved: 'Approve',
+  published: 'Publish',
+};
+
+function getActionLabel(_: WorkflowStatus, targetStatus: WorkflowStatus): string {
+  return ACTION_LABELS[targetStatus] ?? targetStatus;
 }

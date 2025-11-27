@@ -17,10 +17,14 @@ import {
   Zap,
   Target,
   BookOpen,
-  Rocket
+  Rocket,
+  Video,
+  Subtitles,
+  Image
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import Logo from '@/components/Logo';
+import VideoExportTutorial from '@/components/tutorials/VideoExportTutorial';
 
 interface Step6FeatureTourProps {
   onBack: () => void;
@@ -43,6 +47,14 @@ const FEATURES = [
     icon: <Download className="w-6 h-6" />,
     color: 'bg-green-500',
     highlight: 'One-click publishing'
+  },
+  {
+    id: 'video',
+    title: 'Video Export',
+    description: 'Create professional videos with subtitles and branding',
+    icon: <Video className="w-6 h-6" />,
+    color: 'bg-purple-500',
+    highlight: 'Social media ready'
   },
   {
     id: 'analytics',
@@ -89,9 +101,15 @@ const Step6FeatureTour: React.FC<Step6FeatureTourProps> = ({ onBack, onComplete 
   const navigate = useNavigate();
   const [selectedFeature, setSelectedFeature] = useState<string | null>(null);
   const [showCelebration, setShowCelebration] = useState(false);
+  const [showVideoTutorial, setShowVideoTutorial] = useState(false);
 
   const handleFeatureClick = async (featureId: string) => {
     setSelectedFeature(featureId);
+    
+    // Show video tutorial for video export feature
+    if (featureId === 'video') {
+      setShowVideoTutorial(true);
+    }
   };
 
   const handleComplete = async () => {
@@ -121,6 +139,35 @@ const Step6FeatureTour: React.FC<Step6FeatureTourProps> = ({ onBack, onComplete 
     navigate('/dashboard');
   };
 
+  if (showVideoTutorial) {
+    return (
+      <div className="min-h-screen bg-background p-4">
+        <div className="max-w-6xl mx-auto">
+          <div className="mb-6">
+            <Button 
+              variant="ghost" 
+              onClick={() => setShowVideoTutorial(false)}
+              className="mb-4"
+            >
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Back to Feature Tour
+            </Button>
+          </div>
+          <VideoExportTutorial
+            onComplete={() => {
+              setShowVideoTutorial(false);
+              setSelectedFeature(null);
+            }}
+            onSkip={() => {
+              setShowVideoTutorial(false);
+              setSelectedFeature(null);
+            }}
+          />
+        </div>
+      </div>
+    );
+  }
+
   if (showCelebration) {
     return (
       <div className="max-w-4xl mx-auto">
@@ -137,7 +184,7 @@ const Step6FeatureTour: React.FC<Step6FeatureTourProps> = ({ onBack, onComplete 
           <div className="space-y-4">
             <h2 className="text-4xl font-bold text-foreground">🎉 Congratulations!</h2>
             <p className="text-xl text-muted-foreground">
-              You've successfully completed the podjust onboarding!
+              You've successfully completed the audiotext onboarding!
             </p>
             <div className="flex justify-center space-x-2">
               {ACHIEVEMENTS.map((achievement, index) => (
@@ -169,9 +216,9 @@ const Step6FeatureTour: React.FC<Step6FeatureTourProps> = ({ onBack, onComplete 
     <div className="max-w-6xl mx-auto space-y-8">
       {/* Header */}
       <div className="text-center space-y-4">
-        <div className="flex items-center justify-center gap-0 mb-4">
-          <Logo size="sm" />
-          <h2 className="text-3xl font-bold text-foreground -ml-2">Welcome to podjust!</h2>
+        <div className="mb-4">
+          <Logo size="lg" className="mb-2" />
+          <h2 className="text-3xl font-bold text-foreground">Welcome to audiotext!</h2>
         </div>
         <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
           You're all set up! Here's a quick tour of the powerful features that will transform 
@@ -235,7 +282,7 @@ const Step6FeatureTour: React.FC<Step6FeatureTourProps> = ({ onBack, onComplete 
               </div>
               <h3 className="font-semibold text-foreground mb-2">Upload Content</h3>
               <p className="text-sm text-muted-foreground">
-                Drag & drop audio files or paste YouTube URLs to get started
+                Drag & drop audio files to get started
               </p>
             </div>
             <div className="text-center">

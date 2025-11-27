@@ -12,7 +12,10 @@
     "types:supabase": "npx supabase gen types typescript --project-id $SUPABASE_PROJECT_ID > src/types/supabase.ts"
   },
   "dependencies": {
-    "@clerk/clerk-react": "^5.46.0",
+    "@clerk/clerk-react": "^5.54.0",
+    "@ffmpeg/core": "^0.12.10",
+    "@ffmpeg/ffmpeg": "^0.12.15",
+    "@ffmpeg/util": "^0.12.2",
     "@hookform/resolvers": "^3.6.0",
     "@radix-ui/react-accordion": "^1.1.2",
     "@radix-ui/react-alert-dialog": "^1.0.5",
@@ -41,6 +44,7 @@
     "@radix-ui/react-toast": "^1.1.5",
     "@radix-ui/react-toggle": "^1.0.3",
     "@radix-ui/react-tooltip": "^1.0.7",
+    "@stripe/stripe-js": "^8.3.0",
     "@supabase/supabase-js": "^2.45.6",
     "@tanstack/react-query": "^5.86.0",
     "@types/three": "^0.180.0",

@@ -2,10 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { Clock, MessageSquare, AlertTriangle, Crown } from 'lucide-react';
 import { useUser } from '@clerk/clerk-react';
 import { usageService } from '@/lib/usageService';
+import { useTranslation } from 'react-i18next';
 
 interface UsageDisplayProps {
   className?: string;
@@ -13,6 +13,7 @@ interface UsageDisplayProps {
 
 const UsageDisplay: React.FC<UsageDisplayProps> = ({ className }) => {
   const { user } = useUser();
+  const { t } = useTranslation();
   const [usage, setUsage] = useState({
     minutesUsed: 0,
     minutesLimit: 30,
@@ -55,7 +56,7 @@ const UsageDisplay: React.FC<UsageDisplayProps> = ({ className }) => {
         <CardHeader>
           <CardTitle className="flex items-center space-x-2">
             <Clock className="w-5 h-5" />
-            <span>Usage This Month</span>
+            <span>{t('usage.title')}</span>
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -86,21 +87,21 @@ const UsageDisplay: React.FC<UsageDisplayProps> = ({ className }) => {
         <CardTitle className="flex items-center justify-between">
           <div className="flex items-center space-x-2">
             <Clock className="w-5 h-5" />
-            <span>Usage This Month</span>
+            <span>{t('usage.title')}</span>
           </div>
           <Badge variant={usage.planName === 'Pro' ? 'default' : 'secondary'}>
             {usage.planName === 'Pro' ? (
               <div className="flex items-center space-x-1">
                 <Crown className="w-3 h-3" />
-                <span>Pro</span>
+                <span>{t('usage.plan.pro')}</span>
               </div>
             ) : (
-              'Free'
+              t('usage.plan.free')
             )}
           </Badge>
         </CardTitle>
         <CardDescription>
-          Track your monthly usage against plan limits
+          {t('usage.description')}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -109,11 +110,11 @@ const UsageDisplay: React.FC<UsageDisplayProps> = ({ className }) => {
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
               <Clock className="w-4 h-4 text-blue-600" />
-              <span className="text-sm font-medium">Audio Processing</span>
+              <span className="text-sm font-medium">{t('usage.audioProcessing')}</span>
             </div>
             <div className="flex items-center space-x-2">
               <span className="text-sm text-muted-foreground">
-                {usage.minutesUsed} / {usage.minutesLimit === 999999 ? '∞' : usage.minutesLimit} minutes
+                {usage.minutesUsed} / {usage.minutesLimit === 999999 ? '∞' : usage.minutesLimit} {t('usage.minutes')}
               </span>
               {isMinutesNearLimit && (
                 <AlertTriangle className="w-4 h-4 text-orange-500" />
@@ -133,7 +134,7 @@ const UsageDisplay: React.FC<UsageDisplayProps> = ({ className }) => {
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
               <MessageSquare className="w-4 h-4 text-purple-600" />
-              <span className="text-sm font-medium">GPT Prompts</span>
+              <span className="text-sm font-medium">{t('usage.gptPrompts')}</span>
             </div>
             <div className="flex items-center space-x-2">
               <span className="text-sm text-muted-foreground">
@@ -158,15 +159,15 @@ const UsageDisplay: React.FC<UsageDisplayProps> = ({ className }) => {
             <div className="flex items-start space-x-2">
               <AlertTriangle className="w-4 h-4 text-orange-600 mt-0.5" />
               <div className="text-sm text-orange-800">
-                <p className="font-medium">Approaching usage limits</p>
+                <p className="font-medium">{t('usage.warning.title')}</p>
                 <p className="text-orange-700">
                   {isMinutesNearLimit && isPromptsNearLimit 
-                    ? 'You\'re approaching both your audio processing and GPT prompt limits.'
+                    ? t('usage.warning.both')
                     : isMinutesNearLimit 
-                    ? 'You\'re approaching your audio processing limit.'
-                    : 'You\'re approaching your GPT prompt limit.'
+                    ? t('usage.warning.audio')
+                    : t('usage.warning.prompts')
                   }
-                  {usage.planName === 'Free' && ' Consider upgrading to Pro for unlimited usage.'}
+                  {usage.planName === 'Free' && ` ${t('usage.warning.upgrade')}`}
                 </p>
               </div>
             </div>

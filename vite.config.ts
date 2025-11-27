@@ -9,9 +9,14 @@ export default defineConfig({
   optimizeDeps: {
     entries: ["src/main.tsx", "src/tempobook/**/*"],
   },
+  server: {
+    // @ts-ignore
+    allowedHosts: process.env.TEMPO === "true" ? true : undefined,
+  },
   plugins: [
     react(),
-    tempo(),
+    // Only include Tempo plugin in development
+    ...(process.env.TEMPO === "true" || process.env.NODE_ENV === "development" ? [tempo()] : []),
   ],
   resolve: {
     preserveSymlinks: true,
@@ -19,8 +24,4 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
-  server: {
-    // @ts-ignore
-    allowedHosts: true,
-  }
 });

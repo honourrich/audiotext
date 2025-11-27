@@ -119,8 +119,18 @@ const YouTubeUnifiedModal: React.FC<YouTubeUnifiedModalProps> = ({
           localStorage.setItem('episodes_owner', user.id);
         }
         
+        // Verify episode was saved
+        const verifyEpisodes = JSON.parse(localStorage.getItem('episodes') || '[]');
+        const savedEpisode = verifyEpisodes.find((ep: any) => ep.id === episodeData.id);
+        if (savedEpisode) {
+          console.log('✅ Episode verified in localStorage:', savedEpisode.id, savedEpisode.title);
+        } else {
+          console.error('❌ ERROR: Episode was NOT saved to localStorage!');
+        }
+        
         console.log('🎬 Created YouTube episode:', episodeData);
         console.log('🎬 Episode duration:', episodeData.duration);
+        console.log('🎬 Total episodes in storage:', verifyEpisodes.length);
         
         // Update usage tracking
         if (user?.id && duration > 0) {

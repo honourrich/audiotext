@@ -28,14 +28,14 @@ Deno.serve(async (req) => {
     
     if (!openaiApiKey) {
       console.error('OpenAI API key not found in environment');
-      console.log('Available env vars:', Object.keys(Deno.env.toObject()));
+      // SECURITY: Removed logging of available env vars to prevent information leakage
       return new Response(
         JSON.stringify({ success: false, error: 'OpenAI API key not configured' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
     
-    console.log('OpenAI API key found, length:', openaiApiKey.length);
+    // SECURITY: Removed logging of API key length to prevent information leakage
 
     // For files larger than 25MB, we'll reject and suggest compression
     if (fileSize > 25 * 1024 * 1024) {
@@ -57,7 +57,7 @@ Deno.serve(async (req) => {
     const audioBlob = new Blob([audioBuffer], { type: getAudioMimeType(fileName) });
     formData.append('file', audioBlob, fileName);
     formData.append('model', 'whisper-1');
-    formData.append('response_format', 'text');
+    formData.append('response_format', 'verbose_json');
 
     console.log(`Calling OpenAI Whisper API for file: ${fileName}, size: ${audioBuffer.length} bytes`);
 
@@ -90,10 +90,10 @@ Deno.serve(async (req) => {
       );
     }
 
-    const transcript = await response.text();
-    console.log(`Transcription successful, length: ${transcript.length} characters`);
+    const result = await response.json();
+    console.log(`Transcription successful, length: ${result.text?.length || 0} characters`);
     
-    if (!transcript || transcript.trim().length < 5) {
+    if (!result.text || result.text.trim().length < 5) {
       return new Response(
         JSON.stringify({ 
           success: false, 
@@ -101,6 +101,14 @@ Deno.serve(async (req) => {
         }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
+    }
+
+    // Extract text without timestamps
+    let transcript = result.text;
+    if (result.segments) {
+      transcript = result.segments
+        .map((segment: any) => segment.text)
+        .join(' ');
     }
 
     return new Response(

@@ -310,70 +310,90 @@ export type Database = {
       }
       episodes: {
         Row: {
-          assigned_to: string | null
-          audio_url: string | null
-          created_at: string | null
-          current_status: string | null
-          description: string | null
-          due_date: string | null
-          duration_seconds: number | null
-          episode_number: number | null
           id: string
-          podcast_id: string
-          published_at: string | null
-          season_number: number | null
-          status: string | null
+          user_id: string | null
           title: string
-          transcript_status: string | null
+          audio_url: string | null
+          youtube_url: string | null
+          file_size: number | null
+          duration: number | null
+          transcript: string | null
+          summary_short: string | null
+          summary_long: string | null
+          chapters: Json | null
+          keywords: Json | null
+          quotes: Json | null
+          processing_status: string | null
+          processing_progress: number | null
+          processing_error: string | null
+          created_at: string | null
           updated_at: string | null
+          last_edited: string | null
+          word_count: number | null
+          processing_time: number | null
+          api_cost: number | null
           workspace_id: string | null
+          current_status: string | null
+          assigned_to: string | null
+          due_date: string | null
         }
         Insert: {
-          assigned_to?: string | null
+          id?: string
+          user_id: string
+          title: string
           audio_url?: string | null
+          youtube_url?: string | null
+          file_size?: number | null
+          duration?: number | null
+          transcript?: string | null
+          summary_short?: string | null
+          summary_long?: string | null
+          chapters?: Json | null
+          keywords?: Json | null
+          quotes?: Json | null
+          processing_status?: string | null
+          processing_progress?: number | null
+          processing_error?: string | null
           created_at?: string | null
           current_status?: string | null
-          description?: string | null
-          due_date?: string | null
-          duration_seconds?: number | null
-          episode_number?: number | null
-          id?: string
-          podcast_id: string
-          published_at?: string | null
-          season_number?: number | null
-          status?: string | null
-          title: string
-          transcript_status?: string | null
-          updated_at?: string | null
+          last_edited?: string | null
+          word_count?: number | null
+          processing_time?: number | null
+          api_cost?: number | null
           workspace_id?: string | null
+          assigned_to?: string | null
+          due_date?: string | null
+          updated_at?: string | null
         }
         Update: {
-          assigned_to?: string | null
+          id?: string
+          user_id?: string | null
+          title?: string
           audio_url?: string | null
+          youtube_url?: string | null
+          file_size?: number | null
+          duration?: number | null
+          transcript?: string | null
+          summary_short?: string | null
+          summary_long?: string | null
+          chapters?: Json | null
+          keywords?: Json | null
+          quotes?: Json | null
           created_at?: string | null
           current_status?: string | null
-          description?: string | null
-          due_date?: string | null
-          duration_seconds?: number | null
-          episode_number?: number | null
-          id?: string
-          podcast_id?: string
-          published_at?: string | null
-          season_number?: number | null
-          status?: string | null
-          title?: string
-          transcript_status?: string | null
-          updated_at?: string | null
+          processing_status?: string | null
+          processing_progress?: number | null
+          processing_error?: string | null
+          last_edited?: string | null
+          word_count?: number | null
+          processing_time?: number | null
+          api_cost?: number | null
           workspace_id?: string | null
+          assigned_to?: string | null
+          due_date?: string | null
+          updated_at?: string | null
         }
         Relationships: [
-          {
-            foreignKeyName: "episodes_podcast_id_fkey"
-            columns: ["podcast_id"]
-            isOneToOne: false
-            referencedRelation: "podcasts"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "episodes_workspace_id_fkey"
             columns: ["workspace_id"]

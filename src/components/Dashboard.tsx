@@ -1,5 +1,4 @@
-import React, { useState, useEffect } from 'react';
-import { useUser } from '@clerk/clerk-react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { 
   Sparkles, 
@@ -46,10 +45,11 @@ import {
   DropdownMenuItem, 
   DropdownMenuTrigger 
 } from '@/components/ui/dropdown-menu';
-import { UserButton } from '@clerk/clerk-react';
+import { useUser, useClerk } from '@clerk/clerk-react';
 import { Link } from 'react-router-dom';
 import UploadModal from './UploadModal';
 import Logo from './Logo';
+import UsageDisplay from './UsageDisplay';
 // import { EpisodeService, EpisodeData } from '@/lib/episodeService'; // Disabled - using localStorage only
 import { migrateLocalStorageToSupabase, hasLocalStorageData } from '@/lib/migrationHelper';
 
@@ -64,7 +64,7 @@ interface EpisodeData {
   keywords: string[];
   references: any[];
   quotes?: any[];
-  duration: string;
+  duration: string | number; // Can be either string (formatted) or number (seconds)
   audioUrl?: string;
   youtubeUrl?: string;
   fileSize?: number;
@@ -82,6 +82,10 @@ interface EpisodeData {
 
 const Dashboard: React.FC = () => {
   const { user } = useUser();
+  const { signOut } = useClerk();
+  const handleSignOut = () => {
+    signOut({ redirectUrl: '/' });
+  };
   const { t } = useTranslation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -94,114 +98,291 @@ const Dashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Load episodes from localStorage first (temporary fix)
-  useEffect(() => {
-    const loadEpisodes = async () => {
-      try {
+  // Helper function to format duration (handles both number and string)
+  const formatDuration = (duration: any): string => {
+    // If it's already a formatted string, return it
+    if (typeof duration === 'string' && duration.match(/^\d{1,2}:\d{2}$/)) {
+      return duration;
+    }
+    
+    // If it's a number (seconds), format it properly
+    if (typeof duration === 'number' && duration > 0) {
+      const hours = Math.floor(duration / 3600);
+      const minutes = Math.floor((duration % 3600) / 60);
+      const seconds = Math.floor(duration % 60);
+      
+      if (hours > 0) {
+        return `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+      } else {
+        return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+      }
+    }
+    
+    // If duration is 0 or invalid, show error state
+    if (typeof duration === 'number' && duration === 0) {
+      return '⚠️ No duration';
+    }
+    
+    // Default fallback for undefined/null/invalid
+    return 'Unknown';
+  };
+
+
+
+  // Extract episode loading logic into a reusable function
+  const loadEpisodesFromStorage = useCallback(async (showLoading = true) => {
+    try {
+      if (showLoading) {
         setLoading(true);
-        setError(null);
-        
-        console.log('Loading episodes from localStorage...');
-        console.log('User authentication status:', { isSignedIn: !!user, userId: user?.id });
-        
-        // Load episodes from localStorage first
-        const storedEpisodes = localStorage.getItem('episodes');
-        console.log('Raw stored episodes:', storedEpisodes);
-        
+      }
+      setError(null);
+      
+      console.log('Loading episodes from localStorage...');
+      console.log('User authentication status:', { isSignedIn: !!user, userId: user?.id });
+      
+      // Load episodes from localStorage first
+      const storedEpisodes = localStorage.getItem('episodes');
+      const episodesOwner = localStorage.getItem('episodes_owner');
+      console.log('Raw stored episodes:', storedEpisodes);
+      
+      // Wait for user to be loaded before filtering
+      if (!user?.id) {
+        console.log('No authenticated user yet – waiting for user to load...');
+        // Don't clear episodes if user is just not loaded yet
+        // Load episodes anyway but don't filter by userId yet
         if (storedEpisodes) {
           try {
             const parsedEpisodes = JSON.parse(storedEpisodes);
-            console.log('Parsed episodes successfully:', parsedEpisodes);
-            console.log('Number of episodes:', parsedEpisodes.length);
-          
-          // Fix any episodes with old structure
-          const fixedEpisodes = parsedEpisodes.map((ep: any) => {
-            // Convert old structure to new structure
-            if (ep.source || ep.type || ep.status) {
-              console.log('Fixing old episode structure:', ep);
-              return {
-                ...ep,
-                processingStatus: ep.status || ep.processingStatus || 'completed',
-                createdAt: ep.createdAt || ep.created_at || new Date().toISOString(),
-                updatedAt: ep.updatedAt || ep.updated_at || new Date().toISOString(),
-                // Remove old properties
-                source: undefined,
-                type: undefined,
-                status: undefined,
-                created_at: undefined,
-                updated_at: undefined
-              };
-            }
-            return ep;
-          });
-          
-          // Save fixed episodes back to localStorage
-          localStorage.setItem('episodes', JSON.stringify(fixedEpisodes));
-          setEpisodes(fixedEpisodes);
-          } catch (parseError) {
-            console.error('Failed to parse episodes from localStorage:', parseError);
-            console.error('Raw data:', storedEpisodes);
-            setError('Failed to load episodes - data corruption detected');
+            console.log('📦 Loading episodes without user filter (user not loaded yet):', parsedEpisodes.length);
+            // Load all episodes temporarily until user loads
+            setEpisodes(Array.isArray(parsedEpisodes) ? parsedEpisodes : []);
+          } catch (error) {
+            console.error('Failed to parse episodes:', error);
             setEpisodes([]);
           }
         } else {
-          console.log('No episodes found in localStorage, creating demo episodes...');
-          // Initialize with demo episodes if none exist
-          const demoEpisodes = [
-            {
-              id: 'demo-1',
-              title: 'Getting Started with ShowNote AI',
-              duration: '25:42',
-              transcript: 'This is a demo episode transcript...',
-              summary: 'A quick introduction to ShowNote AI',
-              chapters: [],
-              keywords: ['demo', 'introduction', 'AI'],
-              hasAIContent: true,
-              aiGeneratedAt: new Date().toISOString(),
-              audioUrl: null,
-              youtubeUrl: null,
-              fileSize: null,
-              processingStatus: 'completed',
-              processingProgress: 100,
-              processingError: null,
-              createdAt: new Date().toISOString(),
-              updatedAt: new Date().toISOString(),
-              wordCount: 150,
-              processingTime: 30,
-              apiCost: 0.05
-            }
-          ];
-          localStorage.setItem('episodes', JSON.stringify(demoEpisodes));
-          setEpisodes(demoEpisodes);
-          console.log('Created demo episodes:', demoEpisodes);
+          setEpisodes([]);
         }
-        
-        // TODO: Later migrate to Supabase once RLS is properly configured
-        if (user?.id && hasLocalStorageData()) {
-          console.log('User authenticated, will migrate to Supabase later...');
-          // await migrateLocalStorageToSupabase(user.id);
+        if (showLoading) {
+          setLoading(false);
         }
-        
-      } catch (error) {
-        console.error('Failed to load episodes:', error);
-        setError(`Failed to load episodes: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        return;
+      }
+
+      if (episodesOwner && episodesOwner !== user.id) {
+        console.log('Episode cache belongs to another user, clearing it');
+        localStorage.removeItem('episodes');
+        localStorage.setItem('episodes_owner', user.id);
         setEpisodes([]);
-      } finally {
+        if (showLoading) {
+          setLoading(false);
+        }
+        return;
+      }
+
+      if (!episodesOwner) {
+        localStorage.setItem('episodes_owner', user.id);
+      }
+      
+      if (storedEpisodes) {
+        try {
+          const parsedEpisodes = JSON.parse(storedEpisodes);
+          console.log('📦 Parsed episodes successfully:', parsedEpisodes);
+          console.log('📦 Number of episodes:', parsedEpisodes.length);
+          // Filter episodes: include if no userId (legacy) OR userId matches current user
+          const parsedForUser = Array.isArray(parsedEpisodes)
+            ? parsedEpisodes.filter((ep: any) => {
+                // Include episodes without userId (legacy episodes)
+                if (!ep?.userId) {
+                  return true;
+                }
+                // Include episodes that match current user
+                if (ep.userId === user.id) {
+                  return true;
+                }
+                // Exclude episodes from other users
+                console.log(`Excluding episode "${ep.title}" - belongs to user ${ep.userId}, current user is ${user.id}`);
+                return false;
+              })
+            : [];
+          
+          // List all episodes to debug
+          console.log(`📋 Filtered ${parsedForUser.length} episodes for user ${user.id} out of ${parsedEpisodes.length} total`);
+          parsedForUser.forEach((ep: any, idx: number) => {
+            console.log(`Episode ${idx + 1}: "${ep.title}" (ID: ${ep.id}, userId: ${ep.userId}, status: ${ep.processingStatus})`);
+          });
+          
+          if (parsedForUser.length === 0 && parsedEpisodes.length > 0) {
+            console.warn('⚠️ WARNING: All episodes were filtered out!');
+            console.warn('Episodes in storage:', parsedEpisodes.map((ep: any) => ({
+              title: ep.title,
+              userId: ep.userId,
+              id: ep.id
+            })));
+            console.warn('Current user ID:', user.id);
+          }
+        
+        // Deduplicate and merge episodes by checking for same title
+        console.log('🔍 Checking for duplicate episodes...');
+        const uniqueEpisodesMap = new Map();
+        const duplicateCount = new Map<string, number>();
+        
+        parsedForUser.forEach((ep: any) => {
+          // Create a normalized key by removing extra spaces and converting to lowercase
+          const key = ep.title.toLowerCase().trim().replace(/\s+/g, ' ');
+          
+          // Count occurrences
+          duplicateCount.set(key, (duplicateCount.get(key) || 0) + 1);
+          
+          console.log(`Checking episode: "${ep.title}" -> key: "${key}"`);
+          
+          // If we've seen this title before, merge the data
+          if (uniqueEpisodesMap.has(key)) {
+            console.log(`⚠️ DUPLICATE FOUND: "${ep.title}"`);
+            const existing = uniqueEpisodesMap.get(key);
+            
+            // Merge properties - keep the more complete version of each property
+            const merged = { ...existing };
+            
+            // Merge transcript - keep the longer one
+            if (ep.transcript && (!existing.transcript || ep.transcript.length > existing.transcript.length)) {
+              merged.transcript = ep.transcript;
+            }
+            
+            // Merge duration - keep the one with actual duration
+            if (ep.duration && (!existing.duration || existing.duration === 0 || existing.duration === '00:00')) {
+              merged.duration = ep.duration;
+            }
+            
+            // Merge URLs - keep both
+            if (ep.youtubeUrl && !existing.youtubeUrl) {
+              merged.youtubeUrl = ep.youtubeUrl;
+            }
+            if (ep.audioUrl && !existing.audioUrl) {
+              merged.audioUrl = ep.audioUrl;
+            }
+            
+            // Merge timestamps - keep the most recent
+            if (ep.updatedAt && (!existing.updatedAt || new Date(ep.updatedAt) > new Date(existing.updatedAt))) {
+              merged.updatedAt = ep.updatedAt;
+            }
+            if (ep.createdAt && (!existing.createdAt || new Date(ep.createdAt) > new Date(existing.createdAt))) {
+              merged.createdAt = ep.createdAt;
+            }
+            
+            // Merge other properties
+            if (ep.summary && !existing.summary) merged.summary = ep.summary;
+            if (ep.chapters?.length > 0 && (!existing.chapters?.length || ep.chapters.length > existing.chapters.length)) {
+              merged.chapters = ep.chapters;
+            }
+            if (ep.keywords?.length > 0 && (!existing.keywords?.length || ep.keywords.length > existing.keywords.length)) {
+              merged.keywords = ep.keywords;
+            }
+            
+            // Merge processing status
+            if (ep.processingStatus === 'completed' && existing.processingStatus !== 'completed') {
+              merged.processingStatus = ep.processingStatus;
+              merged.processingProgress = ep.processingProgress;
+            }
+            
+            console.log(`🔄 Merging duplicate episode "${ep.title}"`);
+            uniqueEpisodesMap.set(key, merged);
+          } else {
+            uniqueEpisodesMap.set(key, ep);
+          }
+        });
+        
+        const deduplicatedEpisodes = Array.from(uniqueEpisodesMap.values());
+        
+        if (deduplicatedEpisodes.length < parsedEpisodes.length) {
+          console.log(`✅ Deduplicated episodes: ${parsedEpisodes.length} -> ${deduplicatedEpisodes.length}`);
+          
+          // Show which duplicates were removed
+          duplicateCount.forEach((count, key) => {
+            if (count > 1) {
+              console.log(`🗑️ Removed ${count - 1} duplicate(s) for: "${key}"`);
+            }
+          });
+        } else {
+          console.log('✅ No duplicates found');
+        }
+        
+        // Fix any episodes with old structure
+        const fixedEpisodes = deduplicatedEpisodes.map((ep: any) => {
+          // Convert old structure to new structure
+          if (ep.source || ep.type || ep.status) {
+            console.log('Fixing old episode structure:', ep);
+            const fixed = {
+              ...ep,
+              processingStatus: ep.status || ep.processingStatus || 'completed',
+              createdAt: ep.createdAt || ep.created_at || new Date().toISOString(),
+              updatedAt: ep.updatedAt || ep.updated_at || new Date().toISOString(),
+              // Remove old properties
+              source: undefined,
+              type: undefined,
+              status: undefined,
+              created_at: undefined,
+              updated_at: undefined
+            };
+            return fixed;
+          }
+          
+          // Fix missing duration for YouTube episodes
+          if (ep.sourceType === 'youtube' && (ep.duration === undefined || ep.duration === null)) {
+            console.log('⚠️  Fixing missing duration for YouTube episode:', ep.title);
+            ep.duration = 0; // Set to 0 as fallback
+            ep.updatedAt = new Date().toISOString();
+          }
+          
+          return ep;
+        });
+        
+        // Always save deduplicated episodes back to localStorage
+        console.log(`📊 Original episodes: ${parsedEpisodes.length}, Deduplicated: ${deduplicatedEpisodes.length}, Fixed: ${fixedEpisodes.length}`);
+        
+        // Save fixed/deduplicated episodes back to localStorage
+        localStorage.setItem('episodes', JSON.stringify(fixedEpisodes));
+        console.log('💾 Saved deduplicated episodes to localStorage');
+        
+        setEpisodes(fixedEpisodes);
+        } catch (parseError) {
+          console.error('Failed to parse episodes from localStorage:', parseError);
+          console.error('Raw data:', storedEpisodes);
+          setError('Failed to load episodes - data corruption detected');
+          setEpisodes([]);
+        }
+      } else {
+        console.log('No episodes found in localStorage, initializing empty episode list.');
+        setEpisodes([]);
+      }
+      
+      // TODO: Later migrate to Supabase once RLS is properly configured
+      if (user?.id && hasLocalStorageData()) {
+        console.log('User authenticated, will migrate to Supabase later...');
+        // await migrateLocalStorageToSupabase(user.id);
+      }
+      
+    } catch (error) {
+      console.error('Failed to load episodes:', error);
+      setError(`Failed to load episodes: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      setEpisodes([]);
+    } finally {
+      if (showLoading) {
         setLoading(false);
       }
-    };
-
-    loadEpisodes();
+    }
   }, [user?.id]);
+
+  // Load episodes from localStorage first (temporary fix)
+  useEffect(() => {
+    loadEpisodesFromStorage(true);
+  }, [loadEpisodesFromStorage]);
 
   // Listen for storage changes (when new episodes are added)
   useEffect(() => {
     const handleStorageChange = () => {
-      const storedEpisodes = localStorage.getItem('episodes');
-      if (storedEpisodes) {
-        const parsedEpisodes = JSON.parse(storedEpisodes);
-        setEpisodes(parsedEpisodes);
-      }
+      console.log('🔄 Storage change detected, reloading episodes...');
+      loadEpisodesFromStorage(false); // Don't show loading spinner on updates
     };
 
     window.addEventListener('storage', handleStorageChange);
@@ -213,7 +394,7 @@ const Dashboard: React.FC = () => {
       window.removeEventListener('storage', handleStorageChange);
       window.removeEventListener('episodesUpdated', handleStorageChange);
     };
-  }, []);
+  }, [loadEpisodesFromStorage]);
 
   // Filter episodes based on search query
   const filteredEpisodes = episodes.filter(episode => 
@@ -298,10 +479,7 @@ const Dashboard: React.FC = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             {/* Logo */}
-            <div className="flex items-center gap-px">
-              <Logo size="md" />
-              <span className="text-xl font-bold text-foreground -ml-2">podjust</span>
-            </div>
+            <Logo size="md" />
 
             {/* Search - Desktop */}
             <div className="hidden md:flex flex-1 max-w-md mx-8">
@@ -321,18 +499,57 @@ const Dashboard: React.FC = () => {
 
             {/* Desktop Navigation */}
             <div className="hidden md:flex items-center space-x-4">
+              <Button variant="ghost" size="sm" asChild>
+                <Link to="/settings" className="flex items-center">
+                  <Settings className="h-4 w-4 mr-2" />
+                  {t('navigation.settings')}
+                </Link>
+              </Button>
               <Button variant="ghost" size="sm">
                 <Bell className="h-4 w-4 mr-2" />
-                <span className="sr-only">Notifications</span>
+                <span className="sr-only">{t('navigation.notifications')}</span>
               </Button>
-              <UserButton
-                appearance={{
-                  elements: {
-                    avatarBox: "w-8 h-8",
-                  },
-                }}
-                afterSignOutUrl="/"
-              />
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" className="relative h-9 w-9 rounded-full p-0">
+                    <span className="sr-only">{t('navigation.openUserMenu')}</span>
+                    <div className="h-full w-full rounded-full bg-primary flex items-center justify-center text-primary-foreground text-sm font-medium">
+                      {user?.firstName?.charAt(0) || user?.emailAddresses[0]?.emailAddress?.charAt(0).toUpperCase() || 'U'}
+                    </div>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-80" align="end">
+                  {/* User Info */}
+                  <div className="flex items-center space-x-3 p-3 border-b">
+                    <div className="h-10 w-10 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-lg font-medium">
+                      {user?.firstName?.charAt(0) || user?.emailAddresses[0]?.emailAddress?.charAt(0).toUpperCase() || 'U'}
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium">{user?.emailAddresses[0]?.emailAddress}</p>
+                      <p className="text-xs text-muted-foreground">{t('navigation.freePlan')}</p>
+                    </div>
+                  </div>
+
+
+                  {/* Menu Items */}
+                  <DropdownMenuItem asChild>
+                    <Link to="/settings" className="flex items-center">
+                      <Settings className="mr-2 h-4 w-4" />
+                      {t('navigation.manageAccount')}
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link to="/billing" className="flex items-center">
+                      <CreditCard className="mr-2 h-4 w-4" />
+                      {t('navigation.billing')}
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleSignOut}>
+                    <X className="mr-2 h-4 w-4" />
+                    {t('navigation.signOut')}
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
 
             {/* Mobile menu button */}
@@ -366,18 +583,56 @@ const Dashboard: React.FC = () => {
                 </div>
                 
                 <div className="flex items-center justify-between">
+                  <Button variant="ghost" size="sm" asChild>
+                    <Link to="/settings" className="flex items-center">
+                      <Settings className="h-4 w-4 mr-2" />
+                      {t('navigation.settings')}
+                    </Link>
+                  </Button>
                   <Button variant="ghost" size="sm">
                     <Bell className="h-4 w-4 mr-2" />
-                    Notifications
+                    {t('navigation.notifications')}
                   </Button>
-                  <UserButton
-                    appearance={{
-                      elements: {
-                        avatarBox: "w-8 h-8",
-                      },
-                    }}
-                    afterSignOutUrl="/"
-                  />
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" className="relative h-9 w-9 rounded-full p-0">
+                        <span className="sr-only">{t('navigation.openUserMenu')}</span>
+                        <div className="h-full w-full rounded-full bg-primary flex items-center justify-center text-primary-foreground text-sm font-medium">
+                          {user?.firstName?.charAt(0) || user?.emailAddresses[0]?.emailAddress?.charAt(0).toUpperCase() || 'U'}
+                        </div>
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent className="w-80" align="end">
+                      {/* User Info */}
+                      <div className="flex items-center space-x-3 p-3 border-b">
+                        <div className="h-10 w-10 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-lg font-medium">
+                          {user?.firstName?.charAt(0) || user?.emailAddresses[0]?.emailAddress?.charAt(0).toUpperCase() || 'U'}
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium">{user?.emailAddresses[0]?.emailAddress}</p>
+                          <p className="text-xs text-muted-foreground">{t('navigation.freePlan')}</p>
+                        </div>
+                      </div>
+
+                      {/* Menu Items */}
+                      <DropdownMenuItem asChild>
+                        <Link to="/settings" className="flex items-center">
+                          <Settings className="mr-2 h-4 w-4" />
+                          {t('navigation.manageAccount')}
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link to="/billing" className="flex items-center">
+                          <CreditCard className="mr-2 h-4 w-4" />
+                          {t('navigation.billing')}
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={handleSignOut}>
+                        <X className="mr-2 h-4 w-4" />
+                        {t('navigation.signOut')}
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
               </div>
             </div>
@@ -385,84 +640,13 @@ const Dashboard: React.FC = () => {
         </div>
       </nav>
 
+
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex flex-col md:flex-row gap-6">
           {/* Sidebar */}
           <div className="w-full md:w-64 space-y-4">
-            <Card>
-              <CardContent className="p-4">
-                <div className="space-y-2">
-                  <Button className="w-full justify-start" variant="default">
-                    <FileText className="mr-2 h-4 w-4" />
-                    {t('navigation.episodes')}
-                  </Button>
-                  <Button 
-                    className="w-full justify-start" 
-                    variant="ghost"
-                    onClick={handleNewEpisode}
-                  >
-                    <Upload className="mr-2 h-4 w-4" />
-                    {t('navigation.upload')}
-                  </Button>
-                  <Button className="w-full justify-start" variant="ghost" asChild>
-                    <Link to="/analytics">
-                      <BarChart3 className="mr-2 h-4 w-4" />
-                      {t('navigation.analytics')}
-                    </Link>
-                  </Button>
-                  <Button className="w-full justify-start" variant="ghost" asChild>
-                    <Link to="/profile">
-                      <User className="mr-2 h-4 w-4" />
-                      {t('navigation.profile')}
-                    </Link>
-                  </Button>
-                  <Button className="w-full justify-start" variant="ghost" asChild>
-                    <Link to="/settings">
-                      <Settings className="mr-2 h-4 w-4" />
-                      {t('navigation.settings')}
-                    </Link>
-                  </Button>
-                  <Button className="w-full justify-start" variant="ghost" asChild>
-                    <Link to="/billing">
-                      <CreditCard className="mr-2 h-4 w-4" />
-                      {t('navigation.billing')}
-                    </Link>
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium">{t('dashboard.usage.title')}</CardTitle>
-              </CardHeader>
-              <CardContent className="p-4">
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">{t('dashboard.usage.episodes')}</span>
-                    <span className="font-medium">{totalEpisodes}/5</span>
-                  </div>
-                  <div className="w-full bg-muted rounded-full h-2">
-                    <div 
-                      className="bg-primary h-2 rounded-full transition-all duration-300" 
-                      style={{ width: `${usagePercentage}%` }}
-                    ></div>
-                  </div>
-                  <div className="text-xs text-muted-foreground">
-                    {t('dashboard.usage.freeTier')}
-                  </div>
-                  {processingEpisodes > 0 && (
-                    <div className="text-xs text-primary">
-                      {processingEpisodes} episode{processingEpisodes > 1 ? 's' : ''} processing
-                    </div>
-                  )}
-                  <Button variant="outline" size="sm" className="w-full mt-2">
-                    {t('dashboard.usage.upgradePlan')}
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
+            <UsageDisplay />
           </div>
 
           {/* Main Content */}
@@ -638,7 +822,7 @@ const Dashboard: React.FC = () => {
                           <h3 className="font-medium text-foreground mb-1 truncate">{episode.title}</h3>
                           <div className="flex justify-between text-xs text-muted-foreground">
                             <span>{new Date(episode.createdAt || Date.now()).toLocaleDateString()}</span>
-                            <span>{episode.duration || '00:00'}</span>
+                            <span>{formatDuration(episode.duration)}</span>
                           </div>
                         </CardContent>
                       </Link>
@@ -720,7 +904,7 @@ const Dashboard: React.FC = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between text-sm text-muted-foreground">
             <div className="mb-2 md:mb-0">
-              © 2024 podjust. All rights reserved.
+              © 2024 audiotext. All rights reserved.
             </div>
             <div className="flex flex-wrap gap-4">
               <a href="#" className="hover:text-foreground">Privacy Policy</a>

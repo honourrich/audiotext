@@ -496,25 +496,32 @@ class UsageService {
 
       // Return actual usage data from database - usage is persistent and doesn't decrease when episodes are deleted
       const dbMinutes = usage?.total_minutes_processed || 0;
+      const dbGptPrompts = usage?.gpt_prompts_used || 0;
+      
       // IMPORTANT: Usage should never decrease when episodes are deleted
-      // Always prefer database usage (persistent) over calculated usage (based on current episodes)
-      // Only use calculatedMinutes as fallback if database is 0 or unavailable (for initial sync)
-      // If both exist, use the maximum to ensure usage never decreases
+      // Once usage is recorded in the database, always use database values (they are cumulative and persistent)
+      // Only use calculatedMinutes for initial sync when database has no data yet
+      // If database has data, always prefer it - never recalculate from localStorage as it decreases when episodes are deleted
       const finalMinutes = dbMinutes > 0 
-        ? Math.max(dbMinutes, calculatedMinutes) // If DB exists, use max to prevent decreases
-        : calculatedMinutes; // Only use calculated if DB is 0/unavailable
+        ? dbMinutes // Always use database value if it exists - never decrease it
+        : calculatedMinutes; // Only use calculated for initial sync when DB is empty
+      
+      // GPT prompts should always come from database - never recalculate
+      const finalGptPrompts = dbGptPrompts; // Always use database value for GPT prompts
       
       console.log('Usage calculation:', {
         dbMinutes,
         calculatedMinutes,
         finalMinutes,
-        episodeCount: calculatedMinutes > 0 ? 'calculated from localStorage' : 'from database'
+        dbGptPrompts,
+        finalGptPrompts,
+        source: dbMinutes > 0 ? 'database (persistent)' : 'localStorage (initial sync)'
       });
       
       return {
         minutesUsed: finalMinutes,
         minutesLimit: 30, // Free plan limit
-        gptPromptsUsed: usage?.gpt_prompts_used || 0,
+        gptPromptsUsed: finalGptPrompts,
         gptPromptsLimit: 5, // Free plan limit
         planName: 'Free'
       };

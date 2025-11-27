@@ -16,7 +16,12 @@
     "analytics": "Analytiques",
     "profile": "Profil",
     "settings": "Paramètres",
-    "billing": "Facturation"
+    "billing": "Facturation",
+    "notifications": "Notifications",
+    "openUserMenu": "Ouvrir le menu utilisateur",
+    "freePlan": "Plan Gratuit",
+    "manageAccount": "Gérer le Compte",
+    "signOut": "Se Déconnecter"
   },
   "settings": {
     "title": "Paramètres",
@@ -112,6 +117,24 @@
       "episodes": "Épisodes",
       "freeTier": "Plan gratuit : 5 épisodes par mois",
       "upgradePlan": "Mettre à Niveau le Plan"
+    }
+  },
+  "usage": {
+    "title": "Utilisation Ce Mois",
+    "description": "Suivez votre utilisation mensuelle par rapport aux limites du plan",
+    "audioProcessing": "Traitement Audio",
+    "gptPrompts": "Invites GPT",
+    "minutes": "minutes",
+    "plan": {
+      "free": "Gratuit",
+      "pro": "Pro"
+    },
+    "warning": {
+      "title": "Approche des limites d'utilisation",
+      "audio": "Vous approchez de votre limite de traitement audio.",
+      "prompts": "Vous approchez de votre limite d'invites GPT.",
+      "both": "Vous approchez à la fois de votre limite de traitement audio et de votre limite d'invites GPT.",
+      "upgrade": "Envisagez de passer à Pro pour une utilisation illimitée."
     }
   }
 }

@@ -75,6 +75,7 @@ CREATE TABLE IF NOT EXISTS user_usage (
   month_year TEXT NOT NULL, -- format: 'YYYY-MM'
   episodes_processed INTEGER DEFAULT 0,
   total_minutes_processed INTEGER DEFAULT 0,
+  gpt_prompts_used INTEGER DEFAULT 0,
   api_calls_made INTEGER DEFAULT 0,
   total_cost DECIMAL(10,4) DEFAULT 0.00,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
@@ -95,11 +96,10 @@ CREATE TABLE IF NOT EXISTS subscription_plans (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Insert default subscription plans
+-- Insert simplified subscription plans (Free and Pro only)
 INSERT INTO subscription_plans (name, price_monthly, price_yearly, max_episodes_per_month, max_minutes_per_episode, priority_processing, features) VALUES
-('Free', 0.00, 0.00, 3, 30, FALSE, '{"export_formats": ["txt"], "support": "community"}'),
-('Pro', 19.99, 199.99, 50, 180, TRUE, '{"export_formats": ["txt", "pdf", "docx"], "support": "email", "advanced_editing": true}'),
-('Enterprise', 49.99, 499.99, -1, -1, TRUE, '{"export_formats": ["txt", "pdf", "docx", "json"], "support": "priority", "advanced_editing": true, "api_access": true}')
+('Free', 0.00, 0.00, -1, 30, FALSE, '{"export_formats": ["txt"], "support": "community", "max_gpt_prompts": 5}'),
+('Pro', 19.99, 199.99, -1, -1, TRUE, '{"export_formats": ["txt", "pdf", "docx"], "support": "email", "advanced_editing": true, "max_gpt_prompts": -1}')
 ON CONFLICT DO NOTHING;
 
 -- Create user subscriptions table

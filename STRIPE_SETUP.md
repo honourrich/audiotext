@@ -21,7 +21,7 @@ In your Stripe Dashboard:
 
 1. Go to **Products** → **Add Product**
 2. Create a product named "Pro Plan"
-3. Set the price to **$9.99/month** (recurring)
+3. Set the price to **$7/week** (recurring, weekly interval)
 4. Save the **Price ID** (starts with `price_...`)
 
 Alternatively, use Stripe CLI:
@@ -31,9 +31,9 @@ stripe products create --name="Pro Plan" --description="500 mins audio + unlimit
 
 stripe prices create \
   --product=prod_XXXXX \
-  --unit-amount=999 \
+  --unit-amount=700 \
   --currency=usd \
-  --recurring[interval]=month \
+  --recurring[interval]=week \
   --lookup-key=pro
 ```
 

@@ -22,7 +22,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/components/ui/use-toast';
-import { useTheme } from '@/components/ThemeProvider';
 import { 
   AlertDialog, 
   AlertDialogAction, 
@@ -39,7 +38,6 @@ const SettingsPage: React.FC = () => {
   const { user } = useUser();
   const { toast } = useToast();
   const navigate = useNavigate();
-  const { theme, setTheme } = useTheme();
   const { t, i18n } = useTranslation();
   const [settings, setSettings] = useState({
     notifications: {
@@ -54,7 +52,7 @@ const SettingsPage: React.FC = () => {
       publicProfile: false
     },
     preferences: {
-      theme: theme,
+      theme: 'light',
       language: 'en',
       timezone: 'UTC',
       autoSave: true,
@@ -75,43 +73,33 @@ const SettingsPage: React.FC = () => {
     }
   }, []);
 
-  const saveSettings = async () => {
-    setIsLoading(true);
+  const persistSettings = (updatedSettings: typeof settings) => {
     try {
-      localStorage.setItem('userSettings', JSON.stringify(settings));
-      toast({
-        title: "Settings saved",
-        description: "Your preferences have been updated successfully.",
-      });
+      localStorage.setItem('userSettings', JSON.stringify(updatedSettings));
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to save settings. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
+      console.error('Failed to persist settings to localStorage:', error);
     }
   };
 
   const updateSetting = (category: string, key: string, value: any) => {
-    setSettings(prev => ({
-      ...prev,
-      [category]: {
-        ...prev[category as keyof typeof prev],
-        [key]: value
+    setSettings(prev => {
+      const updated = {
+        ...prev,
+        [category]: {
+          ...prev[category as keyof typeof prev],
+          [key]: value
+        }
+      };
+
+      // Handle theme changes immediately
+      if (category === 'preferences' && key === 'language') {
+        i18n.changeLanguage(value);
       }
-    }));
-    
-    // Handle theme changes immediately
-    if (category === 'preferences' && key === 'theme') {
-      setTheme(value);
-    }
-    
-    // Handle language changes immediately
-    if (category === 'preferences' && key === 'language') {
-      i18n.changeLanguage(value);
-    }
+
+      // Persist to localStorage
+      persistSettings(updated);
+      return updated;
+    });
   };
 
   const exportData = () => {
@@ -204,7 +192,7 @@ const SettingsPage: React.FC = () => {
               <h1 className="text-2xl font-bold text-foreground">{t('settings.title')}</h1>
               <p className="text-muted-foreground">{t('settings.subtitle')}</p>
             </div>
-            <div className="flex items-center space-x-3">
+              <div className="flex items-center space-x-3">
               <Button 
                 variant="outline" 
                 onClick={() => navigate('/dashboard')}
@@ -212,10 +200,6 @@ const SettingsPage: React.FC = () => {
               >
                 <ArrowLeft className="w-4 h-4" />
                 <span>{t('settings.goToDashboard')}</span>
-              </Button>
-              <Button onClick={saveSettings} disabled={isLoading}>
-                <Save className="w-4 h-4 mr-2" />
-                {isLoading ? t('settings.saving') : t('settings.saveChanges')}
               </Button>
             </div>
           </div>
@@ -275,17 +259,8 @@ const SettingsPage: React.FC = () => {
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="theme">{t('settings.preferences.theme')}</Label>
-                    <select 
-                      id="theme"
-                      className="w-full mt-1 px-3 py-2 border border-input bg-background text-foreground rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
-                      value={theme}
-                      onChange={(e) => updateSetting('preferences', 'theme', e.target.value)}
-                    >
-                      <option value="light">{t('settings.preferences.themes.light')}</option>
-                      <option value="dark">{t('settings.preferences.themes.dark')}</option>
-                      <option value="system">{t('settings.preferences.themes.system')}</option>
-                    </select>
+                    <Label>{t('settings.preferences.theme')}</Label>
+                    <p className="text-sm text-muted-foreground mt-1">Dark mode coming soon.</p>
                   </div>
                   <div>
                     <Label htmlFor="language">{t('settings.preferences.language')}</Label>
@@ -295,10 +270,10 @@ const SettingsPage: React.FC = () => {
                       value={settings.preferences.language}
                       onChange={(e) => updateSetting('preferences', 'language', e.target.value)}
                     >
-                      <option value="en">{t('settings.preferences.languages.en')}</option>
-                      <option value="es">{t('settings.preferences.languages.es')}</option>
-                      <option value="fr">{t('settings.preferences.languages.fr')}</option>
-                      <option value="de">{t('settings.preferences.languages.de')}</option>
+                      <option value="en">English</option>
+                      <option value="es">Español</option>
+                      <option value="fr">Français</option>
+                      <option value="de">Deutsch</option>
                     </select>
                   </div>
                 </div>

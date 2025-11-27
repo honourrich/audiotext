@@ -401,7 +401,7 @@ describe('Upload Modal - Regression Tests', () => {
 
       // Check for processing steps
       await waitFor(() => {
-        expect(screen.getByText(/Transcribing audio with OpenAI Whisper/i)).toBeInTheDocument();
+        expect(screen.getByText(/Transcribing audio/i)).toBeInTheDocument();
       });
 
       await waitFor(() => {

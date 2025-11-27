@@ -16,7 +16,12 @@
     "analytics": "Analíticas",
     "profile": "Perfil",
     "settings": "Configuración",
-    "billing": "Facturación"
+    "billing": "Facturación",
+    "notifications": "Notificaciones",
+    "openUserMenu": "Abrir menú de usuario",
+    "freePlan": "Plan Gratis",
+    "manageAccount": "Gestionar Cuenta",
+    "signOut": "Cerrar Sesión"
   },
   "settings": {
     "title": "Configuración",
@@ -112,6 +117,24 @@
       "episodes": "Episodios",
       "freeTier": "Plan gratuito: 5 episodios por mes",
       "upgradePlan": "Actualizar Plan"
+    }
+  },
+  "usage": {
+    "title": "Uso Este Mes",
+    "description": "Rastrea tu uso mensual contra los límites del plan",
+    "audioProcessing": "Procesamiento de Audio",
+    "gptPrompts": "Solicitudes GPT",
+    "minutes": "minutos",
+    "plan": {
+      "free": "Gratis",
+      "pro": "Pro"
+    },
+    "warning": {
+      "title": "Acercándose a los límites de uso",
+      "audio": "Te estás acercando a tu límite de procesamiento de audio.",
+      "prompts": "Te estás acercando a tu límite de solicitudes GPT.",
+      "both": "Te estás acercando tanto a tu límite de procesamiento de audio como a tu límite de solicitudes GPT.",
+      "upgrade": "Considera actualizar a Pro para uso ilimitado."
     }
   }
 }

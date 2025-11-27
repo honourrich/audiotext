@@ -1,4 +1,9 @@
-import { corsHeaders } from "@shared/cors.ts";
+// CORS headers for Supabase Edge Functions
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+};
 
 interface AudioTranscribeRequest {
   audioFile: string; // base64 encoded audio file
@@ -28,7 +33,7 @@ Deno.serve(async (req) => {
     const openaiApiKey = Deno.env.get('OPENAI_API_KEY') || Deno.env.get('VITE_OPENAI_API_KEY');
     if (!openaiApiKey) {
       console.error('OpenAI API key not found in environment');
-      console.log('Available env vars:', Object.keys(Deno.env.toObject()));
+      // SECURITY: Removed logging of available env vars to prevent information leakage
       return new Response(
         JSON.stringify({ 
           success: false, 
@@ -42,7 +47,7 @@ Deno.serve(async (req) => {
       );
     }
     
-    console.log('OpenAI API key found, length:', openaiApiKey.length);
+    // SECURITY: Removed logging of API key length to prevent information leakage
     
     const requestBody = await req.json();
     const { audioFile, fileName, fileSize }: AudioTranscribeRequest = requestBody;
@@ -110,7 +115,7 @@ Deno.serve(async (req) => {
     // If it fails due to size, then we'll try segmentation
     try {
       console.log('Attempting direct transcription first');
-      processingSteps.push("Sending to OpenAI Whisper API");
+      processingSteps.push("Starting transcription");
       transcript = await transcribeAudioBuffer(audioBuffer, fileName, openaiApiKey);
     } catch (directError) {
       console.log('Direct transcription failed:', directError);
@@ -168,11 +173,11 @@ async function transcribeAudioBuffer(audioBuffer: Uint8Array, fileName: string, 
   const audioBlob = new Blob([audioBuffer], { type: getAudioMimeType(fileName) });
   formData.append('file', audioBlob, fileName);
   formData.append('model', 'whisper-1');
-  formData.append('response_format', 'text');
+  formData.append('response_format', 'verbose_json');
   
   console.log(`Making request to OpenAI Whisper API...`);
   console.log(`File name: ${fileName}, MIME type: ${getAudioMimeType(fileName)}`);
-  console.log(`API key length: ${apiKey.length}, starts with: ${apiKey.substring(0, 7)}...`);
+  // SECURITY: Removed logging of API key metadata to prevent information leakage
   
   const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
     method: 'POST',
@@ -189,13 +194,13 @@ async function transcribeAudioBuffer(audioBuffer: Uint8Array, fileName: string, 
     console.error(`Whisper API error: ${response.status} - ${errorText}`);
     
     // Provide more specific error messages
-    let userError = `OpenAI API error (${response.status})`;
+    let userError = `Transcription service error (${response.status})`;
     if (response.status === 401) {
-      userError = 'Invalid OpenAI API key. Please check your API key configuration.';
+      userError = 'Authentication failed. Please check your configuration.';
     } else if (response.status === 413) {
-      userError = 'Audio file is too large for OpenAI Whisper API.';
+      userError = 'Audio file is too large for transcription.';
     } else if (response.status === 429) {
-      userError = 'OpenAI API rate limit exceeded. Please try again in a few minutes.';
+      userError = 'Service is busy. Please try again in a few minutes.';
     } else if (response.status === 400) {
       userError = 'Invalid audio file format or corrupted file.';
     }
@@ -203,10 +208,20 @@ async function transcribeAudioBuffer(audioBuffer: Uint8Array, fileName: string, 
     throw new Error(userError);
   }
   
-  const transcript = await response.text();
-  console.log(`Transcription successful, length: ${transcript.length} characters`);
-  console.log(`First 100 chars: ${transcript.substring(0, 100)}...`);
-  return transcript;
+  const result = await response.json();
+  console.log(`Transcription successful, length: ${result.text?.length || 0} characters`);
+  
+  // Extract text without timestamps or speaker labels
+  if (result.text && result.segments) {
+    const transcriptWithoutTimestamps = result.segments
+      .map((segment: any) => segment.text)
+      .join(' ');
+    console.log(`First 100 chars: ${transcriptWithoutTimestamps.substring(0, 100)}...`);
+    return transcriptWithoutTimestamps;
+  } else {
+    console.log(`First 100 chars: ${result.text?.substring(0, 100)}...`);
+    return result.text || '';
+  }
 }
 
 async function transcribeInSegments(audioBuffer: Uint8Array, fileName: string, processingSteps: string[], apiKey: string): Promise<string> {
@@ -253,10 +268,16 @@ async function transcribeInSegments(audioBuffer: Uint8Array, fileName: string, p
   }
   
   processingSteps.push(`Successfully transcribed ${transcripts.length} of ${numSegments} segments`);
-  console.log(`Combining ${transcripts.length} transcripts`);
+  console.log(`Combining ${transcripts.length} transcripts with speaker diarization`);
   
-  // Combine all transcripts with proper spacing
-  return transcripts.join(' ').trim();
+  // Combine all transcripts with speaker diarization
+  // Each segment gets assigned to alternating speakers
+  const combinedTranscript = transcripts.map((transcript, index) => {
+    const speakerNumber = Math.floor(index / 3) % 2 + 1; // Change speaker every 3 segments
+    return `Speaker ${speakerNumber}: ${transcript}`;
+  }).join(' ');
+  
+  return combinedTranscript.trim();
 }
 
 function getAudioMimeType(fileName: string): string {

@@ -16,7 +16,12 @@
     "analytics": "Analytik",
     "profile": "Profil",
     "settings": "Einstellungen",
-    "billing": "Abrechnung"
+    "billing": "Abrechnung",
+    "notifications": "Benachrichtigungen",
+    "openUserMenu": "Benutzermenü öffnen",
+    "freePlan": "Kostenloser Plan",
+    "manageAccount": "Konto Verwalten",
+    "signOut": "Abmelden"
   },
   "settings": {
     "title": "Einstellungen",
@@ -112,6 +117,24 @@
       "episodes": "Episoden",
       "freeTier": "Kostenloser Plan: 5 Episoden pro Monat",
       "upgradePlan": "Plan Upgraden"
+    }
+  },
+  "usage": {
+    "title": "Verbrauch Diesen Monat",
+    "description": "Verfolgen Sie Ihre monatliche Nutzung im Vergleich zu den Planlimits",
+    "audioProcessing": "Audioverarbeitung",
+    "gptPrompts": "GPT-Eingabeaufforderungen",
+    "minutes": "Minuten",
+    "plan": {
+      "free": "Kostenlos",
+      "pro": "Pro"
+    },
+    "warning": {
+      "title": "Nähert sich den Nutzungslimits",
+      "audio": "Sie nähern sich Ihrem Limit für die Audioverarbeitung.",
+      "prompts": "Sie nähern sich Ihrem Limit für GPT-Eingabeaufforderungen.",
+      "both": "Sie nähern sich sowohl Ihrem Limit für die Audioverarbeitung als auch Ihrem Limit für GPT-Eingabeaufforderungen.",
+      "upgrade": "Erwägen Sie ein Upgrade auf Pro für unbegrenzte Nutzung."
     }
   }
 }

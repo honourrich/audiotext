@@ -93,13 +93,13 @@ const Step1Welcome: React.FC<Step1WelcomeProps> = ({ onNext }) => {
     <div className="max-w-4xl mx-auto space-y-8">
       {/* Header */}
       <div className="text-center space-y-4">
-        <div className="flex items-center justify-center gap-0 mb-4">
-          <Logo size="sm" />
-          <h1 className="text-3xl font-bold text-foreground -ml-2">Welcome to podjust</h1>
+        <div className="mb-4">
+          <Logo size="lg" className="mb-2" />
+          <h1 className="text-3xl font-bold text-foreground">Welcome to audiotext</h1>
         </div>
         <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
           Let's personalize your experience! Tell us what type of content creator you are 
-          so we can customize podjust to fit your specific needs.
+          so we can customize audiotext to fit your specific needs.
         </p>
       </div>
 
@@ -160,7 +160,7 @@ const Step1Welcome: React.FC<Step1WelcomeProps> = ({ onNext }) => {
       {/* Value Propositions */}
       <div className="bg-card rounded-xl p-6 border">
         <h3 className="text-lg font-semibold text-foreground mb-4 text-center">
-          Why creators choose podjust
+          Why creators choose audiotext
         </h3>
         <div className="grid md:grid-cols-3 gap-6">
           <div className="text-center">

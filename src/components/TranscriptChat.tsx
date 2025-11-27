@@ -200,23 +200,18 @@ const TranscriptChat: React.FC<TranscriptChatProps> = ({
         throw new Error('No transcript content available. Please ensure your transcript is properly loaded.');
       }
 
-      // Check OpenAI API key
-      const apiKey = import.meta.env.VITE_OPENAI_API_KEY;
-      if (!apiKey) {
-        throw new Error('OpenAI API key not configured. Please check your environment variables.');
+      // SECURITY: Use Supabase Edge Function instead of direct OpenAI API call
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      if (!supabaseUrl) {
+        throw new Error('Supabase configuration missing. Please check your environment variables.');
       }
 
-      // Validate API key format
-      if (!apiKey.startsWith('sk-')) {
-        throw new Error('Invalid OpenAI API key format. Please check your API key.');
-      }
-
-      console.log('TranscriptChat: Making API call to OpenAI...');
+      console.log('TranscriptChat: Making API call to Supabase Edge Function...');
 
       // Prepare conversation messages for OpenAI API
       const conversationMessages = [
         {
-          role: 'system',
+          role: 'system' as const,
           content: `You are a helpful AI assistant that specializes in refining and improving transcripts. You have access to the following transcript content:
 
 TRANSCRIPT:
@@ -233,11 +228,11 @@ Your task is to help the user refine this transcript by:
 Be helpful, accurate, and maintain the original meaning while improving the transcript's quality.`
         },
         ...messages.map(msg => ({
-          role: msg.role,
+          role: msg.role as 'user' | 'assistant',
           content: msg.content
         })),
         {
-          role: 'user',
+          role: 'user' as const,
           content: userMessage.content
         }
       ];
@@ -246,15 +241,16 @@ Be helpful, accurate, and maintain the original meaning while improving the tran
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 second timeout
 
-      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      // Call Supabase Edge Function
+      const response = await fetch(`${supabaseUrl}/functions/v1/chat-completion`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${apiKey}`,
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
         },
         body: JSON.stringify({
-          model: 'gpt-3.5-turbo',
           messages: conversationMessages,
+          model: 'gpt-3.5-turbo',
           temperature: 0.7,
           max_tokens: 1200,
         }),
@@ -264,14 +260,14 @@ Be helpful, accurate, and maintain the original meaning while improving the tran
       clearTimeout(timeoutId);
 
       if (!response.ok) {
-        let errorMessage = 'OpenAI API request failed';
+        let errorMessage = 'API request failed';
         
         try {
           const errorData = await response.json();
-          console.error('OpenAI API error response:', errorData);
+          console.error('Edge Function error response:', errorData);
           
           if (response.status === 401) {
-            errorMessage = 'Invalid OpenAI API key. Please check your API key configuration.';
+            errorMessage = 'Authentication failed. Please check your configuration.';
           } else if (response.status === 429) {
             // Extract rate limit info if available
             const retryAfter = response.headers.get('retry-after');
@@ -281,14 +277,8 @@ Be helpful, accurate, and maintain the original meaning while improving the tran
               ? ` Please wait ${retryAfter} seconds before trying again.`
               : ' Please wait a few minutes before trying again.';
             errorMessage = `Rate limit exceeded.${rateLimitInfo}`;
-          } else if (response.status === 400) {
-            errorMessage = 'Invalid request. Please check your input and try again.';
-          } else if (response.status === 500) {
-            errorMessage = 'OpenAI server error. Please try again later.';
-          } else if (response.status === 503) {
-            errorMessage = 'OpenAI service temporarily unavailable. Please try again later.';
           } else {
-            errorMessage = `API error (${response.status}): ${errorData.error?.message || 'Unknown error'}`;
+            errorMessage = errorData.error || `API error (${response.status})`;
           }
         } catch (parseError) {
           console.error('Error parsing API response:', parseError);
@@ -299,18 +289,16 @@ Be helpful, accurate, and maintain the original meaning while improving the tran
       }
 
       const data = await response.json();
-      console.log('OpenAI API response received:', { 
-        model: data.model, 
-        usage: data.usage,
-        choicesCount: data.choices?.length 
+      console.log('Edge Function response received:', { 
+        success: data.success
       });
 
-      const aiContent = data.choices?.[0]?.message?.content;
-
-      if (!aiContent) {
-        console.error('No content in OpenAI response:', data);
-        throw new Error('No response content from OpenAI. Please try again.');
+      if (!data.success || !data.content) {
+        console.error('No content in Edge Function response:', data);
+        throw new Error(data.error || 'No response content. Please try again.');
       }
+
+      const aiContent = data.content;
 
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),

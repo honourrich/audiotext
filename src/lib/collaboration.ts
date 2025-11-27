@@ -87,6 +87,12 @@ export class CollaborationAPI {
   }
 
   static async getTeamMembers(workspaceId: string): Promise<TeamMember[]> {
+    // Check if user is authenticated
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      throw new Error('Not authenticated');
+    }
+
     const { data, error } = await supabase
       .from('team_members')
       .select(`
@@ -342,7 +348,10 @@ export class CollaborationAPI {
   static async restoreVersion(episodeId: string, versionId: string): Promise<VersionHistory> {
     const { data, error } = await supabase
       .from('version_history')
-      .select('content_snapshot')
+      .select(`
+        *,
+        user:users(id, full_name, avatar_url)
+      `)
       .eq('id', versionId)
       .single();
 

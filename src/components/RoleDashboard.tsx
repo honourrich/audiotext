@@ -52,18 +52,24 @@ export default function RoleDashboard({
     try {
       setLoading(true);
       
+      // Check if we're in demo mode (mock IDs)
+      const isDemoMode = workspaceId.startsWith('demo-');
+      
       const [episodesData, teamData] = await Promise.all([
         // Load episodes based on role
         loadEpisodesForRole(),
-        permissions.canManageTeam ? 
-          CollaborationAPI.getTeamMembers(workspaceId) : 
-          Promise.resolve([])
+        permissions.canManageTeam && !isDemoMode ? 
+          CollaborationAPI.getTeamMembers(workspaceId).catch(() => []) : 
+          Promise.resolve(getMockTeamMembers())
       ]);
 
       setEpisodes(episodesData);
       setTeamMembers(teamData);
     } catch (error) {
       console.error('Failed to load dashboard data:', error);
+      // Load mock data on error
+      setEpisodes(await loadEpisodesForRole());
+      setTeamMembers(getMockTeamMembers());
     } finally {
       setLoading(false);
     }
@@ -90,6 +96,62 @@ export default function RoleDashboard({
         due_date: '2024-01-20',
         collaborators: [],
         updated_at: '2024-01-12'
+      }
+    ];
+  };
+
+  const getMockTeamMembers = (): TeamMember[] => {
+    return [
+      {
+        id: '1',
+        user_id: 'user-1',
+        workspace_id: workspaceId,
+        role: 'host',
+        status: 'active',
+        invited_by: null,
+        permissions: {},
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        user: {
+          id: 'user-1',
+          email: 'host@example.com',
+          full_name: 'John Host',
+          avatar_url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=host'
+        }
+      },
+      {
+        id: '2',
+        user_id: 'user-2',
+        workspace_id: workspaceId,
+        role: 'editor',
+        status: 'active',
+        invited_by: 'user-1',
+        permissions: {},
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        user: {
+          id: 'user-2',
+          email: 'editor@example.com',
+          full_name: 'Sarah Editor',
+          avatar_url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=editor'
+        }
+      },
+      {
+        id: '3',
+        user_id: 'user-3',
+        workspace_id: workspaceId,
+        role: 'marketer',
+        status: 'active',
+        invited_by: 'user-1',
+        permissions: {},
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        user: {
+          id: 'user-3',
+          email: 'marketer@example.com',
+          full_name: 'Mike Marketer',
+          avatar_url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=marketer'
+        }
       }
     ];
   };

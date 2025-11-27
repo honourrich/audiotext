@@ -10,7 +10,7 @@ const SignInPage: React.FC = () => {
           <Logo size="lg" />
         </div>
         <h2 className="mt-6 text-center text-3xl font-extrabold text-foreground">
-          Sign in to podjust
+          Sign in to audiotext
         </h2>
         <p className="mt-2 text-center text-sm text-muted-foreground">
           Access your dashboard and manage your content

@@ -3,6 +3,7 @@ import PersonalizationSettings from '@/components/PersonalizationSettings';
 import PersonalityProfileCard from '@/components/PersonalityProfileCard';
 import ResourceLinkManager from '@/components/ResourceLinkManager';
 import SocialMediaIntegration from '@/components/SocialMediaIntegration';
+import PersonalizationAIAssistant from '@/components/PersonalizationAIAssistant';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -17,7 +18,8 @@ import {
   Target,
   BookOpen,
   Zap,
-  Share2
+  Share2,
+  Bot
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { UserButton } from '@clerk/clerk-react';
@@ -42,10 +44,7 @@ const PersonalizationPage: React.FC = () => {
                 <ArrowLeft className="w-4 h-4" />
                 <span>Back to Dashboard</span>
               </Button>
-              <div className="flex items-center gap-0">
-                <Logo size="md" />
-                <span className="text-xl font-bold text-foreground -ml-2">podjust</span>
-              </div>
+              <Logo size="md" />
             </div>
             <div className="flex items-center space-x-4">
               <Badge variant="secondary" className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
@@ -55,7 +54,9 @@ const PersonalizationPage: React.FC = () => {
               <UserButton
                 appearance={{
                   elements: {
-                    avatarBox: "w-8 h-8",
+                    avatarBox: "w-8 h-8 rounded-full aspect-square overflow-hidden bg-primary",
+                    avatarImage: "rounded-full",
+                    avatarFallback: "rounded-full bg-primary text-primary-foreground",
                   },
                 }}
                 afterSignOutUrl="/"
@@ -139,7 +140,7 @@ const PersonalizationPage: React.FC = () => {
 
           {/* Personalization Tabs */}
           <Tabs defaultValue="settings" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-5">
+            <TabsList className="grid w-full grid-cols-6">
               <TabsTrigger value="settings" className="flex items-center space-x-2">
                 <Settings className="w-4 h-4" />
                 <span>Settings</span>
@@ -155,6 +156,10 @@ const PersonalizationPage: React.FC = () => {
               <TabsTrigger value="resources" className="flex items-center space-x-2">
                 <Link className="w-4 h-4" />
                 <span>Resources</span>
+              </TabsTrigger>
+              <TabsTrigger value="assistant" className="flex items-center space-x-2">
+                <Bot className="w-4 h-4" />
+                <span>AI Assistant</span>
               </TabsTrigger>
               <TabsTrigger value="analytics" className="flex items-center space-x-2">
                 <Zap className="w-4 h-4" />
@@ -176,6 +181,10 @@ const PersonalizationPage: React.FC = () => {
 
             <TabsContent value="resources" className="space-y-6">
               <ResourceLinkManager />
+            </TabsContent>
+
+            <TabsContent value="assistant" className="space-y-6">
+              <PersonalizationAIAssistant />
             </TabsContent>
 
             <TabsContent value="analytics" className="space-y-6">

@@ -194,7 +194,7 @@ const EpisodeList: React.FC<EpisodeListProps> = ({ limit }) => {
               <p className="text-muted-foreground text-center">
                 {searchTerm
                   ? "Try adjusting your search terms"
-                  : "Upload your first audio file or YouTube URL to get started"}
+                  : "Upload your first audio file to get started"}
               </p>
             </CardContent>
           </Card>

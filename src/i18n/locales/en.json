@@ -16,7 +16,12 @@
     "analytics": "Analytics",
     "profile": "Profile",
     "settings": "Settings",
-    "billing": "Billing"
+    "billing": "Billing",
+    "notifications": "Notifications",
+    "openUserMenu": "Open user menu",
+    "freePlan": "Free Plan",
+    "manageAccount": "Manage Account",
+    "signOut": "Sign Out"
   },
   "settings": {
     "title": "Settings",
@@ -112,6 +117,158 @@
       "episodes": "Episodes",
       "freeTier": "Free tier: 5 episodes per month",
       "upgradePlan": "Upgrade Plan"
+    }
+  },
+  "usage": {
+    "title": "Usage This Month",
+    "description": "Track your monthly usage against plan limits",
+    "audioProcessing": "Audio Processing",
+    "gptPrompts": "GPT Prompts",
+    "minutes": "minutes",
+    "plan": {
+      "free": "Free",
+      "pro": "Pro"
+    },
+    "warning": {
+      "title": "Approaching usage limits",
+      "audio": "You're approaching your audio processing limit.",
+      "prompts": "You're approaching your GPT prompt limit.",
+      "both": "You're approaching both your audio processing and GPT prompt limits.",
+      "upgrade": "Consider upgrading to Pro for unlimited usage."
+    }
+  },
+  "video": {
+    "title": "Video Export",
+    "subtitle": "Create professional videos with subtitles and branding",
+    "upload": {
+      "title": "Upload Video",
+      "subtitle": "Select a video file to get started",
+      "dragDrop": "Drag & drop a video file here",
+      "clickBrowse": "or click to browse",
+      "supportedFormats": "Supported formats: MP4, MOV, AVI, MKV, WEBM",
+      "maxSize": "Maximum file size: 500MB"
+    },
+    "editor": {
+      "tabs": {
+        "preview": "Preview",
+        "subtitles": "Subtitles",
+        "branding": "Branding",
+        "format": "Format",
+        "process": "Process"
+      },
+      "preview": {
+        "title": "Video Preview",
+        "noVideo": "No video selected",
+        "selectVideo": "Please select a video to preview"
+      },
+      "subtitles": {
+        "title": "Subtitle Editor",
+        "addSubtitle": "Add Subtitle",
+        "startTime": "Start Time",
+        "endTime": "End Time",
+        "text": "Text",
+        "style": "Style",
+        "font": "Font",
+        "size": "Size",
+        "color": "Color",
+        "background": "Background",
+        "position": "Position"
+      },
+      "branding": {
+        "title": "Branding Overlay",
+        "logo": "Logo",
+        "uploadLogo": "Upload Logo",
+        "textWatermark": "Text Watermark",
+        "addText": "Add Text Watermark",
+        "position": "Position",
+        "opacity": "Opacity",
+        "size": "Size"
+      },
+      "format": {
+        "title": "Output Format",
+        "selectFormat": "Select output format",
+        "platforms": {
+          "tiktok": "TikTok (9:16)",
+          "instagram": "Instagram (1:1)",
+          "youtube": "YouTube (16:9)",
+          "facebook": "Facebook (16:9)",
+          "twitter": "Twitter (16:9)",
+          "linkedin": "LinkedIn (16:9)",
+          "custom": "Custom Dimensions"
+        },
+        "dimensions": "Dimensions",
+        "width": "Width",
+        "height": "Height",
+        "aspectRatio": "Aspect Ratio"
+      },
+      "process": {
+        "title": "Process Video",
+        "startProcessing": "Start Processing",
+        "processing": "Processing...",
+        "completed": "Processing Complete",
+        "download": "Download Video",
+        "steps": {
+          "init": "Initializing FFmpeg",
+          "upload": "Uploading video",
+          "subtitles": "Processing subtitles",
+          "branding": "Adding branding",
+          "export": "Exporting video"
+        }
+      }
+    },
+    "dimensions": {
+      "title": "Video Dimensions",
+      "selectFormat": "Select a format",
+      "platforms": {
+        "tiktok": "TikTok",
+        "instagram": "Instagram",
+        "youtube": "YouTube",
+        "facebook": "Facebook",
+        "twitter": "Twitter",
+        "linkedin": "LinkedIn"
+      },
+      "custom": {
+        "title": "Custom Dimensions",
+        "width": "Width (px)",
+        "height": "Height (px)",
+        "aspectRatio": "Aspect Ratio",
+        "calculate": "Calculate Aspect Ratio"
+      }
+    },
+    "preview": {
+      "title": "Aspect Ratio Preview",
+      "original": "Original Video",
+      "target": "Target Format",
+      "conversion": "Conversion Preview",
+      "type": "Conversion Type",
+      "description": "Description",
+      "warnings": {
+        "significantCropping": "Significant cropping required - consider using a different format",
+        "perfectMatch": "No conversion needed - aspect ratios match perfectly"
+      },
+      "recommendations": {
+        "vertical": "Perfect for TikTok, Instagram Stories, and YouTube Shorts",
+        "horizontal": "Great for YouTube, Facebook, and LinkedIn",
+        "square": "Ideal for Instagram posts and Facebook"
+      }
+    },
+    "processing": {
+      "title": "Video Processing",
+      "steps": {
+        "init": "Initializing FFmpeg",
+        "upload": "Uploading video file",
+        "metadata": "Extracting video metadata",
+        "subtitles": "Processing subtitles",
+        "branding": "Adding branding elements",
+        "conversion": "Converting aspect ratio",
+        "export": "Exporting final video"
+      },
+      "progress": "Progress",
+      "timeRemaining": "Time Remaining",
+      "currentStep": "Current Step",
+      "error": "Processing Error",
+      "retry": "Retry",
+      "cancel": "Cancel"
     }
   }
 }

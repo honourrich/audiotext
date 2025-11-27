@@ -9,13 +9,13 @@ export interface UserOnboarding {
   completed_at?: string;
   user_segment?: 'podcast_host' | 'youtube_creator' | 'content_agency' | 'va_editor';
   content_preferences: {
-    content_types: string[];
-    publishing_frequency: string;
-    average_length: string;
+    content_types?: string[];
+    publishing_frequency?: string;
+    average_length?: string;
     target_audience?: string;
   };
   style_preferences: {
-    writing_tone: string;
+    writing_tone?: string;
     social_profiles?: string[];
     website_url?: string;
     writing_samples?: string[];

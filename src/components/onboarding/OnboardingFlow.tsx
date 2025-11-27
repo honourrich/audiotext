@@ -94,10 +94,7 @@ const OnboardingFlow: React.FC = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             {/* Logo */}
-            <div className="flex items-center gap-0">
-              <Logo size="md" />
-              <span className="text-xl font-bold text-foreground -ml-2">podjust</span>
-            </div>
+            <Logo size="md" />
 
             {/* Progress Steps */}
             <div className="hidden md:flex items-center space-x-4">
@@ -143,15 +140,17 @@ const OnboardingFlow: React.FC = () => {
             </div>
 
             {/* Skip Button */}
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              onClick={handleSkipOnboarding}
-              className="text-muted-foreground hover:text-foreground"
-            >
-              <X className="w-4 h-4 mr-1" />
-              Skip Setup
-            </Button>
+            <div className="flex items-center space-x-2 bg-blue-50 border border-blue-200 rounded-full px-3 py-1">
+              <X className="w-4 h-4 text-blue-600" />
+              <Button 
+                variant="link" 
+                size="sm" 
+                onClick={handleSkipOnboarding}
+                className="text-blue-700 hover:text-blue-800 font-semibold px-0"
+              >
+                Skip Setup
+              </Button>
+            </div>
           </div>
 
           {/* Mobile Progress Bar */}
@@ -179,7 +178,7 @@ const OnboardingFlow: React.FC = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between">
             <div className="text-sm text-muted-foreground">
-              © 2024 podjust. All rights reserved.
+              © 2024 audiotext. All rights reserved.
             </div>
             <div className="flex items-center space-x-4 text-sm text-muted-foreground">
               <a href="#" className="hover:text-foreground">Privacy Policy</a>
