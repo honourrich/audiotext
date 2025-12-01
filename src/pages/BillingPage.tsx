@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useUser, useAuth } from '@clerk/clerk-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -7,6 +7,7 @@ import { ArrowLeft, CreditCard, Calendar, Users, Zap, Check, X } from 'lucide-re
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { createCheckoutSession, createCustomerPortalSession } from '@/lib/stripe';
+import { usageService } from '@/lib/usageService';
 
 const BillingPage: React.FC = () => {
   const navigate = useNavigate();
@@ -14,6 +15,29 @@ const BillingPage: React.FC = () => {
   const { getToken } = useAuth();
   const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
+  const [currentPlan, setCurrentPlan] = useState<string | null>(null);
+  const [planLoading, setPlanLoading] = useState(true);
+
+  // Fetch current plan
+  useEffect(() => {
+    const fetchPlan = async () => {
+      if (user?.id) {
+        setPlanLoading(true);
+        try {
+          const usage = await usageService.getUsageForDisplay(user.id);
+          setCurrentPlan(usage.planName);
+        } catch (error) {
+          console.error('Error fetching plan:', error);
+          setCurrentPlan('Free');
+        } finally {
+          setPlanLoading(false);
+        }
+      } else {
+        setPlanLoading(false);
+      }
+    };
+    fetchPlan();
+  }, [user?.id]);
 
   // Simplified subscription plans
   const plans = [
@@ -214,64 +238,80 @@ const BillingPage: React.FC = () => {
           </CardContent>
         </Card>
 
-        {/* Pricing Plans */}
-        <div className="grid md:grid-cols-2 gap-8">
-          {plans.map((plan) => (
-            <Card key={plan.name} className={`relative ${plan.popular ? 'ring-2 ring-primary' : ''}`}>
-              {plan.popular && (
-                <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
-                  <Badge className="bg-primary text-primary-foreground px-3 py-1">
-                    Most Popular
-                  </Badge>
-                </div>
-              )}
-              <CardHeader>
-                <CardTitle className="text-2xl">{plan.name}</CardTitle>
-                <CardDescription>{plan.description}</CardDescription>
-                <div className="flex items-baseline space-x-1">
-                  <span className="text-4xl font-bold">{plan.price}</span>
-                  <span className="text-muted-foreground">/{plan.period}</span>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="space-y-3">
-                  {plan.features.map((feature, index) => (
-                    <div key={index} className="flex items-center space-x-2">
-                      <Check className="w-4 h-4 text-green-600" />
-                      <span className="text-sm">{feature}</span>
-                    </div>
-                  ))}
-                  {plan.limitations.map((limitation, index) => (
-                    <div key={index} className="flex items-center space-x-2">
-                      <X className="w-4 h-4 text-red-500" />
-                      <span className="text-sm text-muted-foreground">{limitation}</span>
-                    </div>
-                  ))}
-                </div>
-                
-                <div className="pt-4">
-                  {plan.current ? (
-                    <Button 
-                      variant="outline" 
-                      className="w-full" 
-                      disabled
-                    >
-                      Current Plan
-                    </Button>
-                  ) : (
-                    <Button 
-                      className={`w-full ${plan.isEnterprise ? 'bg-gray-800 hover:bg-gray-900' : ''}`}
-                      onClick={() => handleUpgrade(plan.name)}
-                      disabled={loading}
-                    >
-                      {loading ? 'Processing...' : plan.isEnterprise ? 'Contact Us' : `Upgrade to ${plan.name}`}
-                    </Button>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+        {/* Pricing Plans - Only show if not on Pro plan */}
+        {!planLoading && currentPlan !== 'Pro' && (
+          <div className="grid md:grid-cols-2 gap-8">
+            {plans.map((plan) => (
+              <Card key={plan.name} className={`relative ${plan.popular ? 'ring-2 ring-primary' : ''}`}>
+                {plan.popular && (
+                  <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
+                    <Badge className="bg-primary text-primary-foreground px-3 py-1">
+                      Most Popular
+                    </Badge>
+                  </div>
+                )}
+                <CardHeader>
+                  <CardTitle className="text-2xl">{plan.name}</CardTitle>
+                  <CardDescription>{plan.description}</CardDescription>
+                  <div className="flex items-baseline space-x-1">
+                    <span className="text-4xl font-bold">{plan.price}</span>
+                    <span className="text-muted-foreground">/{plan.period}</span>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div className="space-y-3">
+                    {plan.features.map((feature, index) => (
+                      <div key={index} className="flex items-center space-x-2">
+                        <Check className="w-4 h-4 text-green-600" />
+                        <span className="text-sm">{feature}</span>
+                      </div>
+                    ))}
+                    {plan.limitations.map((limitation, index) => (
+                      <div key={index} className="flex items-center space-x-2">
+                        <X className="w-4 h-4 text-red-500" />
+                        <span className="text-sm text-muted-foreground">{limitation}</span>
+                      </div>
+                    ))}
+                  </div>
+                  
+                  <div className="pt-4">
+                    {plan.current ? (
+                      <Button 
+                        variant="outline" 
+                        className="w-full" 
+                        disabled
+                      >
+                        Current Plan
+                      </Button>
+                    ) : (
+                      <Button 
+                        className={`w-full ${plan.isEnterprise ? 'bg-gray-800 hover:bg-gray-900' : ''}`}
+                        onClick={() => handleUpgrade(plan.name)}
+                        disabled={loading}
+                      >
+                        {loading ? 'Processing...' : plan.isEnterprise ? 'Contact Us' : `Upgrade to ${plan.name}`}
+                      </Button>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+
+        {/* Pro Plan Active Message */}
+        {!planLoading && currentPlan === 'Pro' && (
+          <Card className="border-primary">
+            <CardHeader>
+              <CardTitle className="flex items-center space-x-2">
+                <Badge className="bg-primary text-primary-foreground">Pro Plan Active</Badge>
+              </CardTitle>
+              <CardDescription>
+                You're currently on the Pro plan. Manage your subscription below.
+              </CardDescription>
+            </CardHeader>
+          </Card>
+        )}
 
         {/* Manage Subscription */}
         <Card>

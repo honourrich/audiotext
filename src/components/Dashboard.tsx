@@ -100,20 +100,26 @@ const Dashboard: React.FC = () => {
   const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [currentPlan, setCurrentPlan] = useState<string>('Free');
+  const [currentPlan, setCurrentPlan] = useState<string | null>(null);
+  const [planLoading, setPlanLoading] = useState(true);
   const [upgradeLoading, setUpgradeLoading] = useState(false);
 
   // Fetch current plan
   useEffect(() => {
     const fetchPlan = async () => {
       if (user?.id) {
+        setPlanLoading(true);
         try {
           const usage = await usageService.getUsageForDisplay(user.id);
           setCurrentPlan(usage.planName);
         } catch (error) {
           console.error('Error fetching plan:', error);
           setCurrentPlan('Free');
+        } finally {
+          setPlanLoading(false);
         }
+      } else {
+        setPlanLoading(false);
       }
     };
     fetchPlan();
@@ -545,7 +551,7 @@ const Dashboard: React.FC = () => {
 
             {/* Desktop Navigation */}
             <div className="hidden md:flex items-center space-x-4">
-              {currentPlan === 'Free' && (
+              {!planLoading && currentPlan === 'Free' && (
                 <Button 
                   variant="default" 
                   size="sm"
@@ -641,7 +647,7 @@ const Dashboard: React.FC = () => {
                 </div>
                 
                 <div className="flex items-center justify-between flex-wrap gap-2">
-                  {currentPlan === 'Free' && (
+                  {!planLoading && currentPlan === 'Free' && (
                     <Button 
                       variant="default" 
                       size="sm"
