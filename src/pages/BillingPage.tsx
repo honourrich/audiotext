@@ -103,17 +103,27 @@ const BillingPage: React.FC = () => {
     }
   ];
 
-  // Get real usage data from localStorage
-  const episodes = JSON.parse(localStorage.getItem('episodes') || '[]');
-  const usage = {
-    minutesUsed: episodes.reduce((total: number, episode: any) => {
-      // Estimate minutes from episode data
-      return total + (episode.duration || 30);
-    }, 0),
+  // Get real usage data from service
+  const [usage, setUsage] = useState({
+    minutesUsed: 0,
     minutesLimit: 30,
-    gptPromptsUsed: parseInt(localStorage.getItem('gptPromptsUsed') || '0'),
+    gptPromptsUsed: 0,
     gptPromptsLimit: 5
-  };
+  });
+
+  useEffect(() => {
+    const fetchUsage = async () => {
+      if (user?.id) {
+        try {
+          const usageData = await usageService.getUsageForDisplay(user.id);
+          setUsage(usageData);
+        } catch (error) {
+          console.error('Error fetching usage data:', error);
+        }
+      }
+    };
+    fetchUsage();
+  }, [user?.id]);
 
   const handleManageSubscription = async () => {
     setLoading(true);
@@ -209,30 +219,34 @@ const BillingPage: React.FC = () => {
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-sm font-medium text-foreground">Audio Processing Time</span>
                   <span className="text-sm text-muted-foreground">
-                    {usage.minutesUsed} / {usage.minutesLimit} minutes
+                    {usage.minutesUsed} / {usage.minutesLimit === -1 ? 'Unlimited' : `${usage.minutesLimit} minutes`}
                   </span>
                 </div>
-                <div className="w-full bg-muted rounded-full h-2">
-                  <div 
-                    className="bg-primary h-2 rounded-full" 
-                    style={{ width: `${Math.min((usage.minutesUsed / usage.minutesLimit) * 100, 100)}%` }}
-                  ></div>
-                </div>
+                {usage.minutesLimit !== -1 && (
+                  <div className="w-full bg-muted rounded-full h-2">
+                    <div 
+                      className="bg-primary h-2 rounded-full" 
+                      style={{ width: `${Math.min((usage.minutesUsed / usage.minutesLimit) * 100, 100)}%` }}
+                    ></div>
+                  </div>
+                )}
               </div>
               
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-sm font-medium text-foreground">GPT Prompts Used</span>
                   <span className="text-sm text-muted-foreground">
-                    {usage.gptPromptsUsed} / {usage.gptPromptsLimit}
+                    {usage.gptPromptsUsed} / {usage.gptPromptsLimit === -1 ? 'Unlimited' : usage.gptPromptsLimit}
                   </span>
                 </div>
-                <div className="w-full bg-muted rounded-full h-2">
-                  <div 
-                    className="bg-blue-600 h-2 rounded-full" 
-                    style={{ width: `${Math.min((usage.gptPromptsUsed / usage.gptPromptsLimit) * 100, 100)}%` }}
-                  ></div>
-                </div>
+                {usage.gptPromptsLimit !== -1 && (
+                  <div className="w-full bg-muted rounded-full h-2">
+                    <div 
+                      className="bg-blue-600 h-2 rounded-full" 
+                      style={{ width: `${Math.min((usage.gptPromptsUsed / usage.gptPromptsLimit) * 100, 100)}%` }}
+                    ></div>
+                  </div>
+                )}
               </div>
             </div>
           </CardContent>

@@ -75,11 +75,15 @@ const UsageDisplay: React.FC<UsageDisplayProps> = ({ className }) => {
     );
   }
 
-  const minutesPercentage = usage.minutesLimit === 999999 ? 0 : (usage.minutesUsed / usage.minutesLimit) * 100;
-  const promptsPercentage = usage.gptPromptsLimit === 999999 ? 0 : (usage.gptPromptsUsed / usage.gptPromptsLimit) * 100;
+  // Check for unlimited (-1) instead of 999999
+  const isMinutesUnlimited = usage.minutesLimit === -1;
+  const isPromptsUnlimited = usage.gptPromptsLimit === -1;
+  
+  const minutesPercentage = isMinutesUnlimited ? 0 : (usage.minutesUsed / usage.minutesLimit) * 100;
+  const promptsPercentage = isPromptsUnlimited ? 0 : (usage.gptPromptsUsed / usage.gptPromptsLimit) * 100;
 
-  const isMinutesNearLimit = minutesPercentage > 80;
-  const isPromptsNearLimit = promptsPercentage > 80;
+  const isMinutesNearLimit = !isMinutesUnlimited && minutesPercentage > 80;
+  const isPromptsNearLimit = !isPromptsUnlimited && promptsPercentage > 80;
 
   return (
     <Card className={className}>
@@ -114,14 +118,14 @@ const UsageDisplay: React.FC<UsageDisplayProps> = ({ className }) => {
             </div>
             <div className="flex items-center space-x-2">
               <span className="text-sm text-muted-foreground">
-                {usage.minutesUsed} / {usage.minutesLimit === 999999 ? '∞' : usage.minutesLimit} {t('usage.minutes')}
+                {usage.minutesUsed} / {isMinutesUnlimited ? 'Unlimited' : `${usage.minutesLimit} ${t('usage.minutes')}`}
               </span>
               {isMinutesNearLimit && (
                 <AlertTriangle className="w-4 h-4 text-orange-500" />
               )}
             </div>
           </div>
-          {usage.minutesLimit !== 999999 && (
+          {!isMinutesUnlimited && (
             <Progress 
               value={minutesPercentage} 
               className={`h-2 ${isMinutesNearLimit ? 'bg-orange-100' : ''}`}
@@ -138,14 +142,14 @@ const UsageDisplay: React.FC<UsageDisplayProps> = ({ className }) => {
             </div>
             <div className="flex items-center space-x-2">
               <span className="text-sm text-muted-foreground">
-                {usage.gptPromptsUsed} / {usage.gptPromptsLimit === 999999 ? '∞' : usage.gptPromptsLimit}
+                {usage.gptPromptsUsed} / {isPromptsUnlimited ? 'Unlimited' : usage.gptPromptsLimit}
               </span>
               {isPromptsNearLimit && (
                 <AlertTriangle className="w-4 h-4 text-orange-500" />
               )}
             </div>
           </div>
-          {usage.gptPromptsLimit !== 999999 && (
+          {!isPromptsUnlimited && (
             <Progress 
               value={promptsPercentage} 
               className={`h-2 ${isPromptsNearLimit ? 'bg-orange-100' : ''}`}
