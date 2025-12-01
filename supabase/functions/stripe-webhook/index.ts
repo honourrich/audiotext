@@ -57,7 +57,7 @@ Deno.serve(async (req) => {
     // Verify webhook signature
     let event;
     try {
-      event = stripe.webhooks.constructEvent(body, signature, stripeWebhookSecret);
+      event = await stripe.webhooks.constructEventAsync(body, signature, stripeWebhookSecret);
     } catch (err) {
       console.error('Webhook signature verification failed:', err);
       return new Response(
@@ -76,43 +76,71 @@ Deno.serve(async (req) => {
         const subscriptionId = session.subscription;
         const planName = session.metadata?.plan_name || 'Pro';
         const customerEmail = session.customer_email || session.customer_details?.email;
+        // Get Clerk user ID from metadata (set during checkout)
+        const clerkUserId = session.metadata?.user_id;
 
-        console.log(`Checkout completed for customer: ${customerId}, subscription: ${subscriptionId}`);
+        console.log(`Checkout completed for customer: ${customerId}, subscription: ${subscriptionId}, email: ${customerEmail}, clerkUserId: ${clerkUserId}`);
 
-        // Find user by email in Supabase
-        if (customerEmail) {
+        let userId: string | null = null;
+
+        // First, try to use Clerk user ID from metadata (most reliable)
+        if (clerkUserId) {
+          userId = clerkUserId;
+          console.log(`Using Clerk user ID from metadata: ${userId}`);
+        } else if (customerEmail) {
+          // Fallback: Find user by email in Supabase
           const { data: users, error: userError } = await supabase
             .from('users')
-            .select('id, clerk_id')
+            .select('id, clerk_id, email')
             .eq('email', customerEmail)
             .limit(1);
 
           if (userError) {
             console.error('Error finding user:', userError);
           } else if (users && users.length > 0) {
-            const userId = users[0].id;
-
-            // Update or insert user subscription
-            const { error: subError } = await supabase
-              .from('user_subscriptions')
-              .upsert({
-                user_id: userId,
-                stripe_customer_id: customerId,
-                stripe_subscription_id: subscriptionId,
-                plan_name: planName,
-                status: 'active',
-                current_period_end: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // Approximate, will be updated by subscription.updated
-                updated_at: new Date().toISOString(),
-              }, {
-                onConflict: 'user_id',
-              });
-
-            if (subError) {
-              console.error('Error updating subscription:', subError);
-            } else {
-              console.log(`Updated subscription for user: ${userId}`);
-            }
+            // Use clerk_id if available, otherwise use id
+            userId = users[0].clerk_id || users[0].id;
+            console.log(`Found user by email: ${userId} for email: ${customerEmail}`);
+          } else {
+            console.log(`No user found for email: ${customerEmail}`);
           }
+        }
+
+        if (!userId) {
+          console.error('No user ID found - cannot create subscription. Email:', customerEmail, 'ClerkUserId:', clerkUserId);
+          break;
+        }
+
+        // Get Pro plan ID
+        const { data: proPlan, error: planError } = await supabase
+          .from('subscription_plans')
+          .select('id')
+          .eq('name', 'Pro')
+          .limit(1)
+          .single();
+
+        const planId = planError ? null : proPlan?.id;
+
+        // Update or insert user subscription
+        const { error: subError } = await supabase
+          .from('user_subscriptions')
+          .upsert({
+            user_id: userId,
+            stripe_customer_id: customerId,
+            stripe_subscription_id: subscriptionId,
+            plan_id: planId,
+            plan_name: planName,
+            status: 'active',
+            current_period_end: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // Approximate, will be updated by subscription.updated
+            updated_at: new Date().toISOString(),
+          }, {
+            onConflict: 'user_id',
+          });
+
+        if (subError) {
+          console.error('Error updating subscription:', subError);
+        } else {
+          console.log(`✅ Successfully created/updated subscription for user: ${userId}`);
         }
 
         break;
@@ -125,38 +153,107 @@ Deno.serve(async (req) => {
         const subscriptionId = subscription.id;
         const status = subscription.status;
         const planName = subscription.metadata?.plan_name || 'Pro';
-        const currentPeriodEnd = new Date(subscription.current_period_end * 1000).toISOString();
+        // Try to get Clerk user ID from subscription metadata (set during checkout)
+        const clerkUserId = subscription.metadata?.user_id;
+        
+        // Safely parse current_period_end - handle null/undefined/invalid values
+        let currentPeriodEnd: string | null = null;
+        if (subscription.current_period_end && typeof subscription.current_period_end === 'number') {
+          try {
+            const date = new Date(subscription.current_period_end * 1000);
+            if (!isNaN(date.getTime())) {
+              currentPeriodEnd = date.toISOString();
+            } else {
+              console.warn(`Invalid current_period_end timestamp: ${subscription.current_period_end}`);
+            }
+          } catch (error) {
+            console.error('Error parsing current_period_end:', error);
+          }
+        }
 
-        console.log(`Subscription ${event.type}: ${subscriptionId} for customer: ${customerId}`);
+        console.log(`Subscription ${event.type}: ${subscriptionId} for customer: ${customerId}, status: ${status}, clerkUserId: ${clerkUserId}`);
+
+        // Get Pro plan ID
+        const { data: proPlan, error: planError } = await supabase
+          .from('subscription_plans')
+          .select('id')
+          .eq('name', 'Pro')
+          .limit(1)
+          .single();
+
+        const planId = planError ? null : proPlan?.id;
 
         // Find user by Stripe customer ID
-        const { data: users, error: userError } = await supabase
+        const { data: subscriptions, error: subQueryError } = await supabase
           .from('user_subscriptions')
           .select('user_id')
           .eq('stripe_customer_id', customerId)
           .limit(1);
 
-        if (userError) {
-          console.error('Error finding subscription:', userError);
-        } else if (users && users.length > 0) {
-          const userId = users[0].user_id;
+        let userId: string | null = null;
+
+        if (subQueryError) {
+          console.error('Error finding subscription:', subQueryError);
+        } else if (subscriptions && subscriptions.length > 0) {
+          userId = subscriptions[0].user_id;
+        } else {
+          // Subscription not found - try to create it using Clerk user ID from metadata
+          if (clerkUserId) {
+            console.log(`No subscription found for customer ${customerId}, creating new subscription using Clerk user ID: ${clerkUserId}`);
+            userId = clerkUserId;
+            
+            // Create new subscription record
+            const { error: createError } = await supabase
+              .from('user_subscriptions')
+              .insert({
+                user_id: userId,
+                stripe_customer_id: customerId,
+                stripe_subscription_id: subscriptionId,
+                plan_id: planId,
+                plan_name: planName,
+                status: status,
+                current_period_end: currentPeriodEnd,
+                updated_at: new Date().toISOString(),
+              });
+
+            if (createError) {
+              console.error('Error creating subscription:', createError);
+            } else {
+              console.log(`✅ Created new subscription for user: ${userId}`);
+            }
+          } else {
+            console.log(`No subscription found for Stripe customer: ${customerId} and no Clerk user ID in metadata - subscription may need to be created via checkout.session.completed first`);
+          }
+        }
+
+        // Update existing subscription if found
+        if (userId && subscriptions && subscriptions.length > 0) {
+          // Prepare update object - only include fields that have values
+          const updateData: any = {
+            stripe_subscription_id: subscriptionId,
+            plan_name: planName,
+            status: status,
+            updated_at: new Date().toISOString(),
+          };
+
+          if (planId) {
+            updateData.plan_id = planId;
+          }
+
+          if (currentPeriodEnd) {
+            updateData.current_period_end = currentPeriodEnd;
+          }
 
           // Update subscription
           const { error: subError } = await supabase
             .from('user_subscriptions')
-            .update({
-              stripe_subscription_id: subscriptionId,
-              plan_name: planName,
-              status: status,
-              current_period_end: currentPeriodEnd,
-              updated_at: new Date().toISOString(),
-            })
+            .update(updateData)
             .eq('user_id', userId);
 
           if (subError) {
             console.error('Error updating subscription:', subError);
           } else {
-            console.log(`Updated subscription for user: ${userId}`);
+            console.log(`✅ Updated subscription for user: ${userId}`);
           }
         }
 

@@ -57,10 +57,15 @@ class UsageService {
   // Get current usage limits based on user's plan
   async getUserLimits(userId: string): Promise<UsageLimits> {
     try {
-      // Get user's current subscription
+      console.log(`[UsageService] Getting limits for user: ${userId}`);
+      
+      // Get user's current subscription - check for active or trialing status
       const { data: subscription, error: subError } = await supabase
         .from('user_subscriptions')
         .select(`
+          plan_name,
+          plan_id,
+          status,
           subscription_plans (
             name,
             max_minutes_per_episode,
@@ -68,28 +73,65 @@ class UsageService {
           )
         `)
         .eq('user_id', userId)
-        .eq('status', 'active')
+        .in('status', ['active', 'trialing'])
         .maybeSingle();
 
       // Handle missing tables gracefully
       if (subError && (subError.code === 'PGRST116' || subError.message.includes('relation "user_subscriptions" does not exist') || subError.code === 'PGRST301' || subError.code === 'PGRST400')) {
-        console.log('Database tables not found or query failed, using Free plan defaults');
+        console.log('[UsageService] Database tables not found or query failed, using Free plan defaults');
         return this.getFreePlanLimits();
       }
 
-      if (subError || !subscription) {
-        // Default to Free plan if no subscription found
+      if (subError) {
+        console.error('[UsageService] Error querying subscription:', subError);
         return this.getFreePlanLimits();
       }
 
+      if (!subscription) {
+        console.log(`[UsageService] No active subscription found for user: ${userId}`);
+        return this.getFreePlanLimits();
+      }
+
+      console.log(`[UsageService] Found subscription:`, {
+        plan_name: subscription.plan_name,
+        plan_id: subscription.plan_id,
+        status: subscription.status,
+        has_plan_join: !!subscription.subscription_plans
+      });
+
+      // Try to get plan details from join first
       const planData = subscription.subscription_plans;
       const plan = Array.isArray(planData) ? planData[0] : planData;
 
+      // If join failed but we have plan_name, use that
+      if (!plan && subscription.plan_name) {
+        console.log(`[UsageService] Plan join failed, using plan_name: ${subscription.plan_name}`);
+        // Determine limits based on plan_name
+        if (subscription.plan_name === 'Pro') {
+          return {
+            maxMinutes: -1, // Unlimited
+            maxGptPrompts: -1, // Unlimited
+            currentMinutes: 0,
+            currentGptPrompts: 0,
+            planName: 'Pro'
+          };
+        }
+        // Fallback to Free if plan_name is not Pro
+        return this.getFreePlanLimits();
+      }
+
       if (!plan) {
+        console.log(`[UsageService] No plan data found, using Free plan`);
         return this.getFreePlanLimits();
       }
 
       const features = (plan.features as Record<string, any> | null) || {};
+
+      console.log(`[UsageService] Returning plan limits:`, {
+        planName: plan.name,
+        maxMinutes: plan.max_minutes_per_episode === -1 ? -1 : 30,
+        maxGptPrompts: features.max_gpt_prompts === -1 ? -1 : 5
+      });
 
       return {
         maxMinutes: plan.max_minutes_per_episode === -1 ? -1 : 30, // Free plan limit
@@ -99,7 +141,7 @@ class UsageService {
         planName: plan.name
       };
     } catch (error) {
-      console.error('Error fetching user limits:', error);
+      console.error('[UsageService] Error fetching user limits:', error);
       return this.getFreePlanLimits();
     }
   }
@@ -362,6 +404,9 @@ class UsageService {
     planName: string;
   }> {
     try {
+      // First, get the user's actual plan and limits
+      const limits = await this.getUserLimits(userId);
+      
       const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM format
       
       // Get current usage data
@@ -474,10 +519,10 @@ class UsageService {
         console.log('⚠️  NOTE: Usage will persist once episodes are processed and saved to database');
         return {
           minutesUsed: calculatedMinutes,
-          minutesLimit: 30,
+          minutesLimit: limits.maxMinutes === -1 ? -1 : limits.maxMinutes,
           gptPromptsUsed: 0,
-          gptPromptsLimit: 5,
-          planName: 'Free'
+          gptPromptsLimit: limits.maxGptPrompts === -1 ? -1 : limits.maxGptPrompts,
+          planName: limits.planName
         };
       }
 
@@ -487,10 +532,10 @@ class UsageService {
         console.log('⚠️  Using calculated usage as fallback due to database error');
         return {
           minutesUsed: calculatedMinutes,
-          minutesLimit: 30,
+          minutesLimit: limits.maxMinutes === -1 ? -1 : limits.maxMinutes,
           gptPromptsUsed: 0,
-          gptPromptsLimit: 5,
-          planName: 'Free'
+          gptPromptsLimit: limits.maxGptPrompts === -1 ? -1 : limits.maxGptPrompts,
+          planName: limits.planName
         };
       }
 
@@ -515,18 +560,22 @@ class UsageService {
         finalMinutes,
         dbGptPrompts,
         finalGptPrompts,
+        planName: limits.planName,
+        maxMinutes: limits.maxMinutes,
+        maxGptPrompts: limits.maxGptPrompts,
         source: dbMinutes > 0 ? 'database (persistent)' : 'localStorage (initial sync)'
       });
       
       return {
         minutesUsed: finalMinutes,
-        minutesLimit: 30, // Free plan limit
+        minutesLimit: limits.maxMinutes === -1 ? -1 : limits.maxMinutes,
         gptPromptsUsed: finalGptPrompts,
-        gptPromptsLimit: 5, // Free plan limit
-        planName: 'Free'
+        gptPromptsLimit: limits.maxGptPrompts === -1 ? -1 : limits.maxGptPrompts,
+        planName: limits.planName
       };
     } catch (error) {
       console.error('Error fetching usage for display:', error);
+      // Fallback to Free plan on error
       return {
         minutesUsed: 0,
         minutesLimit: 30,
